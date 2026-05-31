@@ -24,7 +24,7 @@ const readline = require('readline')
 const { execSync } = require('child_process')
 const { createClient } = require('@supabase/supabase-js')
 
-const MUNICIPIO_LIMEIRA = '70319'
+const MUNICIPIO_LIMEIRA = '66397'  // código TSE de Limeira-SP (NÃO IBGE)
 const UF = 'SP'
 
 function parseArgs() {
