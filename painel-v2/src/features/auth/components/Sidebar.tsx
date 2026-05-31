@@ -4,10 +4,9 @@ import {
   TrendingUp, BarChart3, Inbox, Bell, Calendar, Lock,
   LogOut, ChevronDown, UserCog,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '@/store/auth'
 import { cn, iniciais } from '@/lib/utils'
-import { podeInstalarPWA, instalarPWA, estaInstalado } from '@/lib/pwa'
 
 interface NavItem {
   id: string
@@ -82,24 +81,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { perfil, isAdmin, signOut } = useAuth()
   const location = useLocation()
   const [openGroup, setOpenGroup] = useState<string | null>('cadastro')
-  const [podeInstalar, setPodeInstalar] = useState(podeInstalarPWA())
-  const [jaInstalado, setJaInstalado] = useState(estaInstalado())
-
-  useEffect(() => {
-    const onAvail = () => setPodeInstalar(true)
-    const onInst  = () => { setPodeInstalar(false); setJaInstalado(true) }
-    window.addEventListener('pwa-install-disponivel', onAvail)
-    window.addEventListener('pwa-instalado', onInst)
-    return () => {
-      window.removeEventListener('pwa-install-disponivel', onAvail)
-      window.removeEventListener('pwa-instalado', onInst)
-    }
-  }, [])
-
-  async function clickInstalar() {
-    const ok = await instalarPWA()
-    if (ok) setJaInstalado(true)
-  }
 
   return (
     <aside
@@ -169,15 +150,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           return null
         })}
       </nav>
-
-      {podeInstalar && !jaInstalado && (
-        <button
-          onClick={clickInstalar}
-          className="mx-4 mb-2 px-3 py-2 rounded-lg bg-gradient-to-r from-marco-azul to-marco-azul-esc text-white text-xs font-bold flex items-center justify-center gap-1 hover:shadow-md"
-        >
-          📲 Instalar como app
-        </button>
-      )}
 
       <div className="p-4 border-t border-slate-100 flex items-center gap-2">
         <div className="w-8 h-8 rounded-full bg-marco-azul text-white text-xs font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
