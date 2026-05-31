@@ -2,7 +2,7 @@ import { Menu, Search, Bell, MessageSquare, Check, CheckCheck } from 'lucide-rea
 import { useAuth } from '@/store/auth'
 import { iniciais } from '@/lib/utils'
 import { useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useNotificacoes } from '@/features/notificacoes/hook'
 
 interface TopbarProps {
@@ -22,10 +22,6 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       >
         <Menu className="w-6 h-6" />
       </button>
-
-      <Link to="/" className="hidden sm:flex items-center flex-shrink-0">
-        <img src="/governato-horizontal.png" alt="governato" className="h-9 w-auto" />
-      </Link>
 
       <div className="flex-1 max-w-lg flex items-center bg-slate-100 rounded-xl min-w-0">
         <input
