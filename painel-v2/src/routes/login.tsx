@@ -99,17 +99,19 @@ function LoginPage() {
                 </p>
               </div>
 
-              <form onSubmit={onSubmit} className="space-y-4">
+              <form onSubmit={onSubmit} className="space-y-4" method="post" action="#login">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">E-mail</label>
+                  <label htmlFor="email" className="block text-xs font-bold text-slate-700 mb-1.5">E-mail</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
+                      id="email"
+                      name="email"
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="seunome@dominio.com"
-                      autoComplete="email"
+                      autoComplete="username"
                       required
                       className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-marco-azul/30 focus:border-marco-azul/40"
                     />
@@ -117,10 +119,12 @@ function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Senha</label>
+                  <label htmlFor="password" className="block text-xs font-bold text-slate-700 mb-1.5">Senha</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
+                      id="password"
+                      name="password"
                       type={showPwd ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
