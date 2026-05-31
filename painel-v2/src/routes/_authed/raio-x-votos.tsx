@@ -62,6 +62,7 @@ function RaioXPage() {
   // Comparativo
   const [selecionados, setSelecionados] = useState<string[]>([])
   const [detalhes, setDetalhes] = useState<Record<string, DetalheRow[]>>({})
+  const [historico, setHistorico] = useState<Record<string, Array<{ ano: number; cargo: string; total: number }>>>({})
   const [carregandoComp, setCarregandoComp] = useState(false)
 
   // 1) Carrega filtros (ano/cargo) na primeira vez
@@ -180,26 +181,38 @@ function RaioXPage() {
     if (novo === 'secoes') carregarSecao()
   }
 
-  // 6) Detalhes só pros selecionados
+  // 6) Detalhes + histórico dos selecionados
   useEffect(() => {
-    if (selecionados.length === 0 || !ano || !cargo) { setDetalhes({}); return }
+    if (selecionados.length === 0 || !ano || !cargo) { setDetalhes({}); setHistorico({}); return }
     setCarregandoComp(true)
-    const faltam = selecionados.filter(n => !detalhes[n])
-    if (faltam.length === 0) { setCarregandoComp(false); return }
-    Promise.all(
-      faltam.map(numero =>
+    const faltamDet = selecionados.filter(n => !detalhes[n])
+    const faltamHist = selecionados.filter(n => !historico[n])
+
+    Promise.all([
+      ...faltamDet.map(numero =>
         (supabase as any).rpc('raiox_detalhe_candidato', { p_ano: ano, p_cargo: cargo, p_numero: numero })
-          .then((r: { data: DetalheRow[] | null }) => [numero, r.data ?? []] as [string, DetalheRow[]])
-      )
-    ).then(pares => {
-      setDetalhes(prev => {
-        const out = { ...prev }
-        for (const [n, rows] of pares) out[n] = rows
-        return out
-      })
+          .then((r: { data: DetalheRow[] | null }) => ({ tipo: 'det', numero, data: r.data ?? [] }))
+      ),
+      ...faltamHist.map(numero =>
+        (supabase as any).rpc('raiox_historico_candidato', { p_numero: numero })
+          .then((r: { data: Array<{ ano: number; cargo: string; total_votos: number }> | null }) => ({
+            tipo: 'hist',
+            numero,
+            data: (r.data ?? []).map(x => ({ ano: x.ano, cargo: x.cargo, total: Number(x.total_votos) })),
+          }))
+      ),
+    ]).then(pares => {
+      const novosDet: Record<string, DetalheRow[]> = {}
+      const novosHist: Record<string, Array<{ ano: number; cargo: string; total: number }>> = {}
+      for (const p of pares as Array<{ tipo: string; numero: string; data: unknown }>) {
+        if (p.tipo === 'det') novosDet[p.numero] = p.data as DetalheRow[]
+        else novosHist[p.numero] = p.data as Array<{ ano: number; cargo: string; total: number }>
+      }
+      if (Object.keys(novosDet).length > 0) setDetalhes(prev => ({ ...prev, ...novosDet }))
+      if (Object.keys(novosHist).length > 0) setHistorico(prev => ({ ...prev, ...novosHist }))
       setCarregandoComp(false)
     })
-  }, [selecionados, ano, cargo, detalhes])
+  }, [selecionados, ano, cargo, detalhes, historico])
 
   function toggleSelecionado(numero: string) {
     setSelecionados(s =>
@@ -361,7 +374,7 @@ function RaioXPage() {
             carregandoComp ? (
               <div className="text-center py-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
             ) : (
-              <ComparativoView candidatos={candidatosComparados} />
+              <ComparativoView candidatos={candidatosComparados} historico={historico} />
             )
           )}
           {foco === 'zonas' && (
@@ -493,7 +506,21 @@ interface CompCandidato {
   porLocal: Record<string, number>
 }
 
-function ComparativoView({ candidatos }: { candidatos: CompCandidato[] }) {
+function HeaderCandidato({ c, cor }: { c: CompCandidato; cor: string }) {
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="flex items-center gap-1">
+        <div className={`w-2 h-2 rounded-full ${cor}`} />
+        <span className="font-bold text-slate-700 truncate max-w-[110px]" title={c.nome}>
+          {c.nome}
+        </span>
+      </div>
+      <span className="text-[10px] font-mono text-slate-400">{c.numero}</span>
+    </div>
+  )
+}
+
+function ComparativoView({ candidatos, historico }: { candidatos: CompCandidato[]; historico: Record<string, Array<{ ano: number; cargo: string; total: number }>> }) {
   if (candidatos.length === 0) {
     return (
       <div className="bg-white rounded-2xl ring-soft p-12 text-center text-slate-400">
@@ -531,18 +558,67 @@ function ComparativoView({ candidatos }: { candidatos: CompCandidato[] }) {
           ))}
         </div>
       </div>
+      {/* Evolução histórica — últimas 3 eleições */}
+      <div className="bg-white rounded-2xl ring-soft p-5">
+        <h3 className="font-bold text-slate-800 mb-3">📈 Evolução nas últimas eleições</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-xs uppercase">
+              <tr>
+                <th className="px-3 py-2 text-left">Candidato</th>
+                {(() => {
+                  const anosUnicos = [...new Set(
+                    Object.values(historico).flatMap(h => h.map(x => `${x.ano}|${x.cargo}`))
+                  )].sort().reverse().slice(0, 6)
+                  return anosUnicos.map(ac => {
+                    const [ano, cargo] = ac.split('|')
+                    return <th key={ac} className="px-3 py-2 text-right whitespace-nowrap">{ano} <span className="text-[10px] text-slate-400">{cargo.slice(0, 4)}</span></th>
+                  })
+                })()}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {candidatos.map((c, i) => {
+                const h = historico[c.numero] ?? []
+                const anosUnicos = [...new Set(
+                  Object.values(historico).flatMap(x => x.map(y => `${y.ano}|${y.cargo}`))
+                )].sort().reverse().slice(0, 6)
+                return (
+                  <tr key={c.numero} className="hover:bg-slate-50">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${cores[i % cores.length]}`} />
+                        <span className="font-semibold text-slate-800 truncate max-w-[200px]">{c.nome}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{c.numero}</span>
+                      </div>
+                    </td>
+                    {anosUnicos.map(ac => {
+                      const [ano, cargo] = ac.split('|')
+                      const v = h.find(x => x.ano === Number(ano) && x.cargo === cargo)?.total ?? 0
+                      return (
+                        <td key={ac} className="px-3 py-2 text-right font-mono">
+                          {v > 0 ? v.toLocaleString('pt-BR') : <span className="text-slate-300">—</span>}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl ring-soft p-5">
         <h3 className="font-bold text-slate-800 mb-3">Por zona eleitoral</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[400px]">
-            <thead className="bg-slate-50 text-xs uppercase">
+          <table className="w-full text-sm min-w-[500px]">
+            <thead className="bg-slate-50 text-xs">
               <tr>
-                <th className="px-3 py-2 text-left">Zona</th>
+                <th className="px-3 py-2 text-left uppercase">Zona</th>
                 {candidatos.map((c, i) => (
                   <th key={c.numero} className="px-3 py-2 text-right">
-                    <span className="flex items-center gap-1 justify-end">
-                      <div className={`w-2 h-2 rounded-full ${cores[i % cores.length]}`} />{c.numero}
-                    </span>
+                    <HeaderCandidato c={c} cor={cores[i % cores.length]} />
                   </th>
                 ))}
               </tr>
@@ -563,15 +639,13 @@ function ComparativoView({ candidatos }: { candidatos: CompCandidato[] }) {
       <div className="bg-white rounded-2xl ring-soft p-5">
         <h3 className="font-bold text-slate-800 mb-3">Top 20 locais de votação</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]">
-            <thead className="bg-slate-50 text-xs uppercase">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-slate-50 text-xs">
               <tr>
-                <th className="px-3 py-2 text-left">Local</th>
+                <th className="px-3 py-2 text-left uppercase">Local</th>
                 {candidatos.map((c, i) => (
                   <th key={c.numero} className="px-3 py-2 text-right">
-                    <span className="flex items-center gap-1 justify-end">
-                      <div className={`w-2 h-2 rounded-full ${cores[i % cores.length]}`} />{c.numero}
-                    </span>
+                    <HeaderCandidato c={c} cor={cores[i % cores.length]} />
                   </th>
                 ))}
               </tr>

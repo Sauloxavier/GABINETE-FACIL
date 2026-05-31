@@ -23,12 +23,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Menu className="w-6 h-6" />
       </button>
 
-      <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-        <img src="/logo-azul.png" alt="Marco Xavier" className="h-9 w-auto" />
-        <div className="hidden lg:block leading-tight">
-          <div className="text-sm font-black text-marco-azul">Marco Xavier</div>
-          <div className="text-[10px] text-slate-500 -mt-0.5">Gabinete · Limeira-SP</div>
-        </div>
+      <Link to="/" className="flex items-center flex-shrink-0">
+        <img src="/governato-horizontal.png" alt="governato" className="hidden sm:block h-9 w-auto" />
+        <img src="/governato-icon.png" alt="governato" className="sm:hidden h-9 w-auto" />
       </Link>
 
       <div className="flex-1 max-w-lg flex items-center bg-slate-100 rounded-xl min-w-0">

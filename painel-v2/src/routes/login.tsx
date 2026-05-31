@@ -37,8 +37,11 @@ function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-marco-azul to-marco-azul-esc p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="text-3xl font-black text-marco-azul mb-1">Marco Xavier</div>
-          <div className="text-xs uppercase tracking-widest text-marco-amarelo-esc font-bold">Vereador · Limeira-SP</div>
+          <img
+            src="/governato-vertical.png"
+            alt="governato"
+            className="mx-auto h-32 sm:h-40 w-auto"
+          />
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
