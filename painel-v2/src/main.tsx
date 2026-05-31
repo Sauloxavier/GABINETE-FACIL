@@ -11,6 +11,9 @@ import { routeTree } from './routeTree.gen'
 import { useAuth } from './store/auth'
 import { ToastContainer } from './components/ui/Toast'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
+import { inicializarPWA } from './lib/pwa'
+
+inicializarPWA()
 
 const queryClient = new QueryClient({
   defaultOptions: {

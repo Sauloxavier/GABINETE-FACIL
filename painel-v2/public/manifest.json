@@ -1,8 +1,9 @@
 {
-  "name": "MazyOS — Gabinete Marco Xavier",
+  "name": "Gabinete Marco Xavier",
   "short_name": "Gabinete MX",
   "description": "Painel do mandato — eleitores, atendimentos, agenda, WhatsApp",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#F5F7FB",
   "theme_color": "#1E5BBA",
@@ -12,15 +13,32 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["productivity", "business"],
-  "lang": "pt-BR"
+  "lang": "pt-BR",
+  "shortcuts": [
+    { "name": "Atendimentos", "short_name": "Atendimentos", "url": "/atendimentos" },
+    { "name": "Eleitores",    "short_name": "Eleitores",    "url": "/eleitores" },
+    { "name": "WhatsApp",     "short_name": "WhatsApp",     "url": "/conversas" }
+  ]
 }

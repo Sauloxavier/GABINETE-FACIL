@@ -20,6 +20,7 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 const https = require('https')
+const readline = require('readline')
 const { execSync } = require('child_process')
 const { createClient } = require('@supabase/supabase-js')
 
@@ -69,12 +70,20 @@ function baixar(url, destino) {
       }
       const total = Number(res.headers['content-length'] ?? 0)
       let baixado = 0
+      let ultimoPct = -1
       res.on('data', chunk => {
         baixado += chunk.length
-        if (total) process.stdout.write(`\r  ${Math.round(baixado / total * 100)}% (${Math.round(baixado/1024/1024)} MB)`)
+        if (total) {
+          const pct = Math.floor(baixado / total * 100)
+          // Só loga a cada 10% (sem \r pra não poluir captura)
+          if (pct >= ultimoPct + 10) {
+            ultimoPct = pct
+            console.log(`    ${pct}% (${Math.round(baixado / 1024 / 1024)} MB)`)
+          }
+        }
       })
       res.pipe(file)
-      file.on('finish', () => { file.close(); console.log(); resolve() })
+      file.on('finish', () => { file.close(); resolve() })
     }).on('error', reject)
   })
 }
@@ -104,61 +113,70 @@ function csvParse(linha, sep = ';') {
 }
 
 async function processarCsv(csvPath, filtro) {
-  const conteudo = fs.readFileSync(csvPath, 'latin1') // TSE usa Latin-1 historicamente
-  const linhas = conteudo.split(/\r?\n/).filter(Boolean)
-  if (linhas.length === 0) return []
+  // Stream linha por linha — arquivos do TSE podem passar de 2 GB
+  return new Promise((resolve, reject) => {
+    const stream = fs.createReadStream(csvPath, { encoding: 'latin1' })
+    const rl = readline.createInterface({ input: stream, crlfDelay: Infinity })
+    let header = null
+    let idx = null
+    const resultado = []
 
-  // Detecta header
-  const header = csvParse(linhas[0])
-  const idx = (col) => header.findIndex(h => h.toUpperCase().replace(/"/g, '').trim() === col)
+    rl.on('line', (linha) => {
+      if (!header) {
+        header = csvParse(linha)
+        const find = (col) => header.findIndex(h => h.toUpperCase().replace(/"/g, '').trim() === col)
+        idx = {
+          ano: find('ANO_ELEICAO'),
+          turno: find('NR_TURNO'),
+          cargo: find('DS_CARGO'),
+          uf: find('SG_UF'),
+          municipio: find('CD_MUNICIPIO'),
+          municipioNome: find('NM_MUNICIPIO'),
+          zona: find('NR_ZONA'),
+          secao: find('NR_SECAO'),
+          local: find('NM_LOCAL_VOTACAO'),
+          localEnd: find('DS_LOCAL_VOTACAO_ENDERECO'),
+          numero: find('NR_VOTAVEL'),
+          nome: find('NM_VOTAVEL'),
+          partido: find('SG_PARTIDO'),
+          votos: find('QT_VOTOS'),
+        }
+        if (idx.ano < 0 || idx.cargo < 0) {
+          console.warn(`  ! CSV sem colunas esperadas: ${path.basename(csvPath)}`)
+          rl.close()
+          return resolve([])
+        }
+        return
+      }
 
-  const iAno = idx('ANO_ELEICAO')
-  const iTurno = idx('NR_TURNO')
-  const iCargo = idx('DS_CARGO')
-  const iUf = idx('SG_UF')
-  const iMunicipio = idx('CD_MUNICIPIO')
-  const iMunicipioNome = idx('NM_MUNICIPIO')
-  const iZona = idx('NR_ZONA')
-  const iSecao = idx('NR_SECAO')
-  const iLocal = idx('NM_LOCAL_VOTACAO')
-  const iLocalEnd = idx('DS_LOCAL_VOTACAO_ENDERECO')
-  const iNumero = idx('NR_VOTAVEL')
-  const iNome = idx('NM_VOTAVEL')
-  const iPartido = idx('SG_PARTIDO')
-  const iVotos = idx('QT_VOTOS')
-
-  if (iAno < 0 || iCargo < 0) {
-    console.warn(`  ! CSV sem colunas esperadas: ${path.basename(csvPath)}`)
-    return []
-  }
-
-  const resultado = []
-  for (let i = 1; i < linhas.length; i++) {
-    const linha = csvParse(linhas[i])
-    if (linha.length < 5) continue
-    const get = (j) => (j >= 0 ? linha[j].replace(/"/g, '').trim() : '')
-    if (filtro.cargo && get(iCargo).toUpperCase() !== filtro.cargo) continue
-    if (filtro.municipio && get(iMunicipio) !== filtro.municipio) continue
-    const votos = Number(get(iVotos)) || 0
-    if (votos === 0) continue
-    resultado.push({
-      ano: Number(get(iAno)),
-      turno: Number(get(iTurno)) || 1,
-      cargo: get(iCargo),
-      uf: get(iUf),
-      municipio_codigo: get(iMunicipio),
-      municipio: get(iMunicipioNome),
-      zona: Number(get(iZona)) || 0,
-      secao: Number(get(iSecao)) || 0,
-      local_votacao: get(iLocal) || null,
-      local_endereco: get(iLocalEnd) || null,
-      numero_candidato: get(iNumero),
-      nome_candidato: get(iNome),
-      partido_sigla: get(iPartido),
-      votos,
+      const linhaArr = csvParse(linha)
+      if (linhaArr.length < 5) return
+      const get = (j) => (j >= 0 ? linhaArr[j].replace(/"/g, '').trim() : '')
+      if (filtro.cargo && get(idx.cargo).toUpperCase() !== filtro.cargo) return
+      if (filtro.municipio && get(idx.municipio) !== filtro.municipio) return
+      const votos = Number(get(idx.votos)) || 0
+      if (votos === 0) return
+      resultado.push({
+        ano: Number(get(idx.ano)),
+        turno: Number(get(idx.turno)) || 1,
+        cargo: get(idx.cargo),
+        uf: get(idx.uf),
+        municipio_codigo: get(idx.municipio),
+        municipio: get(idx.municipioNome),
+        zona: Number(get(idx.zona)) || 0,
+        secao: Number(get(idx.secao)) || 0,
+        local_votacao: get(idx.local) || null,
+        local_endereco: get(idx.localEnd) || null,
+        numero_candidato: get(idx.numero),
+        nome_candidato: get(idx.nome),
+        partido_sigla: get(idx.partido),
+        votos,
+      })
     })
-  }
-  return resultado
+
+    rl.on('close', () => resolve(resultado))
+    rl.on('error', reject)
+  })
 }
 
 async function importar(supabase, registros) {
