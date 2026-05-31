@@ -47,7 +47,49 @@ drop policy if exists "root manage perfis" on public.perfis;
 create policy "root manage perfis" on public.perfis
   for all using (public.is_root()) with check (public.is_root());
 
--- 6. Recarrega schema cache do PostgREST
+-- 6. RPC: root pode alterar o e-mail de login (auth.users)
+--    Atualiza tanto em auth.users quanto em perfis.
+create or replace function public.root_atualizar_email(
+  p_user_id uuid,
+  p_novo_email text
+) returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_root() then
+    raise exception 'Acesso negado: apenas root pode alterar e-mail';
+  end if;
+
+  if p_novo_email is null or length(trim(p_novo_email)) = 0 then
+    raise exception 'E-mail vazio';
+  end if;
+
+  -- Evita duplicata
+  if exists (
+    select 1 from auth.users
+     where email = lower(trim(p_novo_email))
+       and id <> p_user_id
+  ) then
+    raise exception 'Já existe outro usuário com esse e-mail';
+  end if;
+
+  update auth.users
+     set email = lower(trim(p_novo_email)),
+         email_confirmed_at = coalesce(email_confirmed_at, now()),
+         updated_at = now()
+   where id = p_user_id;
+
+  update public.perfis
+     set email = lower(trim(p_novo_email))
+   where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.root_atualizar_email(uuid, text) to authenticated;
+
+-- 7. Recarrega schema cache do PostgREST
 notify pgrst, 'reload schema';
 
 -- =====================================================================

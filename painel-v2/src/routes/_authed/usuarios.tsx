@@ -548,6 +548,8 @@ function AvisoModal({ perfil, onClose }: { perfil: PerfilRow | null; onClose: ()
 
 function EditarPerfilModal({ perfil, onClose }: { perfil: PerfilRow | null; onClose: () => void }) {
   const qc = useQueryClient()
+  const auth = useAuth()
+  const isRoot = auth.isRoot()
   const [nome, setNome] = useState(perfil?.nome ?? '')
   const [email, setEmail] = useState(perfil?.email ?? '')
   const [salvando, setSalvando] = useState(false)
@@ -557,12 +559,28 @@ function EditarPerfilModal({ perfil, onClose }: { perfil: PerfilRow | null; onCl
   async function salvar() {
     setSalvando(true)
     try {
+      const novoEmail = email.trim().toLowerCase()
+      const emailMudou = novoEmail !== (perfil!.email ?? '').toLowerCase() && novoEmail.length > 0
+
+      // 1. Atualiza nome e email da tabela perfis
       const { error } = await (supabase.from('perfis') as any)
-        .update({ nome: nome.trim() || null, email: email.trim() || null })
+        .update({ nome: nome.trim() || null, email: novoEmail || null })
         .eq('id', perfil!.id)
       if (error) throw error
+
+      // 2. Se mudou o e-mail E é root, troca o e-mail de login (auth.users) via RPC
+      if (emailMudou && isRoot) {
+        const { error: rpcErr } = await supabase.rpc('root_atualizar_email' as any, {
+          p_user_id: perfil!.id,
+          p_novo_email: novoEmail,
+        })
+        if (rpcErr) throw rpcErr
+      }
+
       qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success('Perfil atualizado')
+      toast.success(
+        emailMudou && isRoot ? 'Perfil + e-mail de login atualizados' : 'Perfil atualizado'
+      )
       onClose()
     } catch (err) {
       toast.error('Erro: ' + (err as Error).message)
@@ -579,11 +597,20 @@ function EditarPerfilModal({ perfil, onClose }: { perfil: PerfilRow | null; onCl
           <input value={nome} onChange={e => setNome(e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">E-mail (apenas exibição — não altera o login)</span>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
-          <span className="text-xs text-slate-500 mt-1 block">
-            Pra trocar o e-mail de login, o usuário precisa fazer isso pela própria conta no Supabase.
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">
+            E-mail {isRoot && <span className="text-marco-azul">(login)</span>}
           </span>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
+          {isRoot ? (
+            <span className="text-xs text-amber-700 mt-1 block">
+              ⚠ Mudar o e-mail aqui também troca o e-mail de login no Supabase Auth.
+              O usuário precisará entrar com o novo e-mail.
+            </span>
+          ) : (
+            <span className="text-xs text-slate-500 mt-1 block">
+              Só altera o nome de exibição. Para mudar o login, peça pra um root.
+            </span>
+          )}
         </label>
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
