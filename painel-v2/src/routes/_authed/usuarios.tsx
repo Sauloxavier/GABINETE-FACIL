@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   UserCog, Crown, Shield, UserPlus, Pause, Play, KeyRound,
-  AlertTriangle, Trash2, MoreVertical, Search, MessageSquareWarning,
+  AlertTriangle, Trash2, Search, MessageSquareWarning, ChevronRight,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth, type AuthState } from '@/store/auth'
@@ -53,88 +53,10 @@ function UsuariosPage() {
   const { data: perfis, isLoading } = usePerfis()
   const auth = useAuth()
   const isRoot = auth.isRoot()
-  const qc = useQueryClient()
 
   const [busca, setBusca] = useState('')
   const [modalCriar, setModalCriar] = useState(false)
-  const [editando, setEditando] = useState<PerfilRow | null>(null)
-  const [resetSenha, setResetSenha] = useState<PerfilRow | null>(null)
-  const [avisoEdit, setAvisoEdit] = useState<PerfilRow | null>(null)
-
-  const mudarPapel = useMutation({
-    mutationFn: async ({ id, papel }: { id: string; papel: 'root' | 'admin' | 'assessor' }) => {
-      const { error } = await (supabase.from('perfis') as any).update({ papel }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success('Papel atualizado')
-    },
-    onError: (err) => toast.error((err as Error).message),
-  })
-
-  const togglePausar = useMutation({
-    mutationFn: async (p: PerfilRow) => {
-      const novo = !p.pausado
-      const { error } = await (supabase.from('perfis') as any)
-        .update({ pausado: novo, pausado_em: novo ? new Date().toISOString() : null })
-        .eq('id', p.id)
-      if (error) throw error
-    },
-    onSuccess: (_, p) => {
-      qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success(p.pausado ? 'Usuário reativado' : 'Usuário pausado')
-    },
-    onError: (err) => toast.error((err as Error).message),
-  })
-
-  const deletar = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('perfis').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success('Perfil removido')
-    },
-    onError: (err) => toast.error((err as Error).message),
-  })
-
-  function alterarPapel(p: PerfilRow) {
-    if (p.id === auth.user?.id) {
-      toast.warn('Você não pode mudar seu próprio papel')
-      return
-    }
-    if (p.papel === 'root' && !isRoot) {
-      toast.error('Só root pode mexer em root')
-      return
-    }
-    const opcoes: Array<'root' | 'admin' | 'assessor'> = isRoot
-      ? ['root', 'admin', 'assessor']
-      : ['admin', 'assessor']
-    const atual = p.papel
-    const idx = opcoes.indexOf(atual)
-    const novo = opcoes[(idx + 1) % opcoes.length]
-    if (!confirm(`Mudar ${p.nome ?? p.email} de "${atual}" para "${novo}"?`)) return
-    mudarPapel.mutate({ id: p.id, papel: novo })
-  }
-
-  function pausar(p: PerfilRow) {
-    if (p.id === auth.user?.id) {
-      toast.warn('Você não pode pausar a si mesmo')
-      return
-    }
-    togglePausar.mutate(p)
-  }
-
-  function removerPerfil(p: PerfilRow) {
-    if (p.id === auth.user?.id) {
-      toast.warn('Você não pode deletar a si mesmo')
-      return
-    }
-    if (!confirm(`Remover ${p.nome ?? p.email} do sistema? (apenas o perfil — a conta de login continua)`)) return
-    deletar.mutate(p.id)
-  }
+  const [perfilSelecionado, setPerfilSelecionado] = useState<PerfilRow | null>(null)
 
   const filtrados = (perfis ?? []).filter(p => {
     if (!busca) return true
@@ -155,7 +77,7 @@ function UsuariosPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             {isRoot
-              ? 'Gestão completa de contas — criar, pausar, resetar senha, avisos.'
+              ? 'Clique em qualquer usuário pra gerenciar.'
               : 'Gerenciar a equipe do gabinete.'}
           </p>
         </div>
@@ -181,9 +103,12 @@ function UsuariosPage() {
       </div>
 
       <CriarUsuarioModal open={modalCriar} onClose={() => setModalCriar(false)} isRoot={isRoot} />
-      <ResetSenhaModal perfil={resetSenha} onClose={() => setResetSenha(null)} />
-      <AvisoModal perfil={avisoEdit} onClose={() => setAvisoEdit(null)} />
-      <EditarPerfilModal perfil={editando} onClose={() => setEditando(null)} />
+      <GerenciarUsuarioModal
+        perfil={perfilSelecionado}
+        onClose={() => setPerfilSelecionado(null)}
+        isRoot={isRoot}
+        meuId={auth.user?.id}
+      />
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-400">Carregando...</div>
@@ -195,72 +120,59 @@ function UsuariosPage() {
       ) : (
         <div className="bg-white rounded-2xl ring-soft overflow-hidden">
           <div className="divide-y divide-slate-100">
-            {filtrados.map(p => {
-              const podeMexer = p.id !== auth.user?.id && (isRoot || p.papel !== 'root')
-              return (
-                <div
-                  key={p.id}
+            {filtrados.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setPerfilSelecionado(p)}
+                className={cn(
+                  'w-full text-left p-4 flex items-center gap-3 border-l-4 hover:bg-slate-50 transition',
+                  p.pausado ? 'border-l-rose-400 bg-rose-50/30' : 'border-l-transparent'
+                )}
+              >
+                <div className="w-11 h-11 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{iniciais(p.nome ?? p.email)}</span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-slate-800 truncate flex items-center gap-2 flex-wrap">
+                    {p.nome ?? p.email}
+                    {p.id === auth.user?.id && (
+                      <span className="text-[10px] font-bold bg-marco-amarelo/20 text-marco-amarelo-esc px-1.5 py-0.5 rounded">VOCÊ</span>
+                    )}
+                    {p.pausado && (
+                      <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                        <Pause className="w-3 h-3" /> PAUSADO
+                      </span>
+                    )}
+                    {p.aviso && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1" title={p.aviso}>
+                        <MessageSquareWarning className="w-3 h-3" /> AVISO
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate">{p.email}</div>
+                </div>
+
+                <span
                   className={cn(
-                    'p-4 flex items-center gap-3 border-l-4',
-                    p.pausado ? 'border-l-rose-400 bg-rose-50/30' : 'border-l-transparent'
+                    'text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 flex-shrink-0',
+                    p.papel === 'root' && 'bg-amber-100 text-amber-700',
+                    p.papel === 'admin' && 'bg-marco-azul/10 text-marco-azul',
+                    p.papel === 'assessor' && 'bg-slate-100 text-slate-600',
                   )}
                 >
-                  <div className="w-11 h-11 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {p.avatar_url ? (
-                      <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{iniciais(p.nome ?? p.email)}</span>
-                    )}
-                  </div>
+                  {p.papel === 'root' && <><Crown className="w-3 h-3" /> Root</>}
+                  {p.papel === 'admin' && <><Crown className="w-3 h-3" /> Admin</>}
+                  {p.papel === 'assessor' && <><Shield className="w-3 h-3" /> Assessor</>}
+                </span>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-slate-800 truncate flex items-center gap-2 flex-wrap">
-                      {p.nome ?? p.email}
-                      {p.id === auth.user?.id && (
-                        <span className="text-[10px] font-bold bg-marco-amarelo/20 text-marco-amarelo-esc px-1.5 py-0.5 rounded">VOCÊ</span>
-                      )}
-                      {p.pausado && (
-                        <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
-                          <Pause className="w-3 h-3" /> PAUSADO
-                        </span>
-                      )}
-                      {p.aviso && (
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1" title={p.aviso}>
-                          <MessageSquareWarning className="w-3 h-3" /> AVISO
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-500 truncate">{p.email}</div>
-                  </div>
-
-                  <button
-                    onClick={() => alterarPapel(p)}
-                    disabled={!podeMexer}
-                    className={cn(
-                      'text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed',
-                      p.papel === 'root' && 'bg-amber-100 text-amber-700 hover:bg-amber-200',
-                      p.papel === 'admin' && 'bg-marco-azul/10 text-marco-azul hover:bg-marco-azul hover:text-white',
-                      p.papel === 'assessor' && 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                    )}
-                    title="Clique para alternar papel"
-                  >
-                    {p.papel === 'root' && <><Crown className="w-3 h-3" /> Root</>}
-                    {p.papel === 'admin' && <><Crown className="w-3 h-3" /> Admin</>}
-                    {p.papel === 'assessor' && <><Shield className="w-3 h-3" /> Assessor</>}
-                  </button>
-
-                  <AcoesMenu
-                    perfil={p}
-                    podeMexer={podeMexer}
-                    onResetSenha={() => setResetSenha(p)}
-                    onPausar={() => pausar(p)}
-                    onAviso={() => setAvisoEdit(p)}
-                    onDeletar={() => removerPerfil(p)}
-                    onEditar={() => setEditando(p)}
-                  />
-                </div>
-              )
-            })}
+                <ChevronRight className="w-5 h-5 text-slate-300 flex-shrink-0" />
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -268,11 +180,11 @@ function UsuariosPage() {
       <div className="bg-marco-azul/5 border border-marco-azul/20 rounded-2xl p-5 mt-6 text-sm text-slate-700">
         💡 <strong>Resumo</strong>
         <ul className="list-disc list-inside mt-2 space-y-1">
-          <li><strong>Root</strong> — super-admin (você). Só vê essa tela.</li>
+          <li><strong>Root</strong> — super-admin. Só vê essa tela.</li>
           <li><strong>Admin</strong> — configura WAHA/IA, gerencia equipe do mandato.</li>
           <li><strong>Assessor</strong> — uso normal do painel.</li>
-          <li><strong>Pausar</strong> bloqueia o login. O usuário recebe a mensagem do "Aviso" como motivo.</li>
-          <li><strong>Aviso</strong> aparece como banner amarelo no topo do painel para o usuário (mesmo sem estar pausado).</li>
+          <li><strong>Pausar</strong> bloqueia o login. O usuário recebe o "Aviso" como motivo.</li>
+          <li><strong>Aviso</strong> aparece como banner amarelo no topo do painel daquele usuário.</li>
           <li><strong>Resetar senha</strong> envia link de recuperação pro e-mail.</li>
         </ul>
       </div>
@@ -280,77 +192,254 @@ function UsuariosPage() {
   )
 }
 
-function AcoesMenu({
-  perfil, podeMexer, onResetSenha, onPausar, onAviso, onDeletar, onEditar,
+// ─── MODAL ÚNICO DE GERENCIAMENTO ────────────────────────────────────
+function GerenciarUsuarioModal({
+  perfil, onClose, isRoot, meuId,
 }: {
-  perfil: PerfilRow
-  podeMexer: boolean
-  onResetSenha: () => void
-  onPausar: () => void
-  onAviso: () => void
-  onDeletar: () => void
-  onEditar: () => void
+  perfil: PerfilRow | null
+  onClose: () => void
+  isRoot: boolean
+  meuId: string | undefined
 }) {
-  const [aberto, setAberto] = useState(false)
+  const qc = useQueryClient()
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [papel, setPapel] = useState<'root' | 'admin' | 'assessor'>('assessor')
+  const [aviso, setAviso] = useState('')
+  const [pausado, setPausado] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+
+  // Sincroniza estado sempre que abrir um perfil diferente
+  useEffect(() => {
+    if (!perfil) return
+    setNome(perfil.nome ?? '')
+    setEmail(perfil.email ?? '')
+    setPapel(perfil.papel)
+    setAviso(perfil.aviso ?? '')
+    setPausado(!!perfil.pausado)
+  }, [perfil?.id])
+
+  if (!perfil) return null
+
+  const ehVoce = perfil.id === meuId
+  const podeMexer = !ehVoce && (isRoot || perfil.papel !== 'root')
+
+  async function salvar() {
+    if (!perfil) return
+    const nomeFinal = nome.trim() || perfil.nome || perfil.email?.split('@')[0] || 'Sem nome'
+    if (!nomeFinal) {
+      toast.error('Informe um nome')
+      return
+    }
+    setSalvando(true)
+    try {
+      const novoEmail = email.trim().toLowerCase()
+      const emailMudou = novoEmail !== (perfil.email ?? '').toLowerCase() && novoEmail.length > 0
+
+      // 1. Atualiza perfis
+      const updates: Record<string, unknown> = {
+        nome: nomeFinal,
+        email: novoEmail || perfil.email,
+        aviso: aviso.trim() || null,
+      }
+      // Só root muda papel/pausado de outros
+      if (isRoot && !ehVoce) {
+        updates.papel = papel
+        updates.pausado = pausado
+        updates.pausado_em = pausado ? new Date().toISOString() : null
+      }
+      const { error } = await (supabase.from('perfis') as any)
+        .update(updates)
+        .eq('id', perfil.id)
+      if (error) throw error
+
+      // 2. Se root mudou e-mail, propaga pra auth.users
+      if (emailMudou && isRoot) {
+        const { error: rpcErr } = await (supabase.rpc as any)('root_atualizar_email', {
+          p_user_id: perfil.id,
+          p_novo_email: novoEmail,
+        })
+        if (rpcErr) throw rpcErr
+      }
+
+      qc.invalidateQueries({ queryKey: ['perfis'] })
+      toast.success('Usuário atualizado')
+      onClose()
+    } catch (err) {
+      toast.error('Erro: ' + (err as Error).message)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function resetSenha() {
+    if (!perfil?.email) { toast.error('Sem e-mail cadastrado'); return }
+    if (!confirm(`Enviar link de redefinição de senha pra ${perfil.email}?`)) return
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(perfil.email, {
+        redirectTo: window.location.origin + '/login',
+      })
+      if (error) throw error
+      toast.success('Link enviado pro e-mail')
+    } catch (err) {
+      toast.error('Erro: ' + (err as Error).message)
+    }
+  }
+
+  async function removerPerfil() {
+    if (!perfil) return
+    if (!confirm(`Remover ${perfil.nome ?? perfil.email}? (apenas o perfil — a conta de login no Supabase Auth continua existindo)`)) return
+    try {
+      const { error } = await supabase.from('perfis').delete().eq('id', perfil.id)
+      if (error) throw error
+      qc.invalidateQueries({ queryKey: ['perfis'] })
+      toast.success('Perfil removido')
+      onClose()
+    } catch (err) {
+      toast.error('Erro: ' + (err as Error).message)
+    }
+  }
+
   return (
-    <div className="relative flex-shrink-0">
-      <button
-        onClick={() => setAberto(v => !v)}
-        className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-        title="Ações"
-      >
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {aberto && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setAberto(false)} />
-          <div className="absolute right-0 top-10 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 z-40 overflow-hidden">
+    <Modal open={!!perfil} onClose={onClose} title={`Gerenciar ${perfil.nome ?? perfil.email}`} size="md">
+      <div className="space-y-5">
+        {/* Cabeçalho do perfil */}
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+          <div className="w-12 h-12 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
+            {perfil.avatar_url ? (
+              <img src={perfil.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span>{iniciais(perfil.nome ?? perfil.email)}</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-slate-800 truncate">{perfil.nome ?? perfil.email}</div>
+            <div className="text-xs text-slate-500 truncate">{perfil.email}</div>
+          </div>
+          {ehVoce && (
+            <span className="text-[10px] font-bold bg-marco-amarelo/20 text-marco-amarelo-esc px-2 py-1 rounded">VOCÊ</span>
+          )}
+        </div>
+
+        {/* Nome */}
+        <label className="block">
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nome *</span>
+          <input value={nome} onChange={e => setNome(e.target.value)} className="input" required />
+        </label>
+
+        {/* E-mail */}
+        <label className="block">
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">
+            E-mail {isRoot && <span className="text-marco-azul">(login)</span>}
+          </span>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
+          {isRoot ? (
+            <span className="text-xs text-amber-700 mt-1 block">
+              ⚠ Trocar aqui também muda o e-mail de login no Supabase Auth.
+            </span>
+          ) : (
+            <span className="text-xs text-slate-500 mt-1 block">
+              Só altera a exibição. Pra mudar o login, peça pra um root.
+            </span>
+          )}
+        </label>
+
+        {/* Papel */}
+        {isRoot && !ehVoce && (
+          <label className="block">
+            <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Papel</span>
+            <select value={papel} onChange={e => setPapel(e.target.value as any)} className="input">
+              <option value="assessor">Assessor</option>
+              <option value="admin">Admin</option>
+              <option value="root">Root (super-admin)</option>
+            </select>
+          </label>
+        )}
+
+        {/* Pausa */}
+        {isRoot && !ehVoce && (
+          <label className="flex items-start gap-3 p-3 bg-rose-50 border border-rose-200 rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pausado}
+              onChange={e => setPausado(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded text-rose-500 focus:ring-rose-500/30"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-bold text-rose-800 flex items-center gap-2">
+                <Pause className="w-4 h-4" /> Pausar acesso
+              </div>
+              <div className="text-xs text-rose-700 mt-0.5">
+                Bloqueia o login. O usuário recebe o "Aviso" como motivo.
+              </div>
+            </div>
+            {pausado && <Pause className="w-5 h-5 text-rose-500" />}
+            {!pausado && <Play className="w-5 h-5 text-emerald-500" />}
+          </label>
+        )}
+
+        {/* Aviso */}
+        {(isRoot || ehVoce) && (
+          <label className="block">
+            <span className="text-xs font-bold text-slate-600 uppercase mb-1 block flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Aviso (banner amarelo no painel)
+            </span>
+            <textarea
+              value={aviso}
+              onChange={e => setAviso(e.target.value)}
+              rows={3}
+              className="input w-full"
+              placeholder="Ex: Mensalidade em atraso. Regularize até dia 15."
+            />
+            <span className="text-xs text-slate-500 mt-1 block">
+              Deixe em branco pra remover.
+            </span>
+          </label>
+        )}
+
+        {/* Ações secundárias */}
+        {podeMexer && (
+          <div className="border-t border-slate-100 pt-4 space-y-2">
             <button
-              onClick={() => { onEditar(); setAberto(false) }}
-              className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2"
+              type="button"
+              onClick={resetSenha}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition text-sm"
             >
-              <UserCog className="w-4 h-4 text-slate-500" /> Editar nome/e-mail
+              <span className="flex items-center gap-2 font-semibold text-slate-700">
+                <KeyRound className="w-4 h-4" /> Resetar senha (envia link por e-mail)
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
             <button
-              onClick={() => { onResetSenha(); setAberto(false) }}
-              disabled={!podeMexer}
-              className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 disabled:opacity-40 flex items-center gap-2"
+              type="button"
+              onClick={removerPerfil}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-rose-50 hover:bg-rose-100 transition text-sm text-rose-700"
             >
-              <KeyRound className="w-4 h-4 text-slate-500" /> Resetar senha
-            </button>
-            <button
-              onClick={() => { onAviso(); setAberto(false) }}
-              disabled={!podeMexer}
-              className="w-full text-left px-4 py-2.5 text-sm hover:bg-amber-50 disabled:opacity-40 flex items-center gap-2"
-            >
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              {perfil.aviso ? 'Editar aviso' : 'Adicionar aviso'}
-            </button>
-            <button
-              onClick={() => { onPausar(); setAberto(false) }}
-              disabled={!podeMexer}
-              className={cn(
-                'w-full text-left px-4 py-2.5 text-sm disabled:opacity-40 flex items-center gap-2',
-                perfil.pausado ? 'hover:bg-emerald-50 text-emerald-700' : 'hover:bg-rose-50 text-rose-700'
-              )}
-            >
-              {perfil.pausado ? <><Play className="w-4 h-4" /> Reativar</> : <><Pause className="w-4 h-4" /> Pausar</>}
-            </button>
-            <div className="border-t border-slate-100" />
-            <button
-              onClick={() => { onDeletar(); setAberto(false) }}
-              disabled={!podeMexer}
-              className="w-full text-left px-4 py-2.5 text-sm hover:bg-rose-50 disabled:opacity-40 flex items-center gap-2 text-rose-700"
-            >
-              <Trash2 className="w-4 h-4" /> Remover perfil
+              <span className="flex items-center gap-2 font-semibold">
+                <Trash2 className="w-4 h-4" /> Remover perfil
+              </span>
+              <ChevronRight className="w-4 h-4 text-rose-400" />
             </button>
           </div>
-        </>
-      )}
-    </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+          <button
+            onClick={salvar}
+            disabled={salvando}
+            className="bg-marco-azul hover:bg-marco-azul-esc text-white font-bold px-6 py-2 rounded-lg text-sm disabled:opacity-50"
+          >
+            {salvando ? 'Salvando...' : 'Salvar alterações'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
+// ─── CRIAR USUÁRIO ──────────────────────────────────────────────────
 function CriarUsuarioModal({ open, onClose, isRoot }: { open: boolean; onClose: () => void; isRoot: boolean }) {
   const qc = useQueryClient()
   const [nome, setNome] = useState('')
@@ -365,6 +454,10 @@ function CriarUsuarioModal({ open, onClose, isRoot }: { open: boolean; onClose: 
       toast.error('Senha precisa de no mínimo 8 caracteres')
       return
     }
+    if (!nome.trim()) {
+      toast.error('Informe o nome')
+      return
+    }
     setSalvando(true)
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -376,16 +469,15 @@ function CriarUsuarioModal({ open, onClose, isRoot }: { open: boolean; onClose: 
       const userId = data.user?.id
       if (!userId) throw new Error('Falha ao criar usuário')
 
-      // upsert do perfil (caso o trigger não tenha rodado)
       await (supabase.from('perfis') as any).upsert({
         id: userId,
         email,
-        nome: nome || email.split('@')[0],
+        nome: nome.trim(),
         papel,
       })
 
       qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success(`${nome ?? email} criado(a)!`)
+      toast.success(`${nome} criado(a)!`)
       setNome(''); setEmail(''); setSenha(''); setPapel('assessor')
       onClose()
     } catch (err) {
@@ -399,8 +491,8 @@ function CriarUsuarioModal({ open, onClose, isRoot }: { open: boolean; onClose: 
     <Modal open={open} onClose={onClose} title="Criar novo usuário" size="md">
       <form onSubmit={onSubmit} className="space-y-4">
         <label className="block">
-          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nome</span>
-          <input value={nome} onChange={e => setNome(e.target.value)} className="input" placeholder="Maria Silva" />
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nome *</span>
+          <input value={nome} onChange={e => setNome(e.target.value)} required className="input" placeholder="Maria Silva" />
         </label>
         <label className="block">
           <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">E-mail *</span>
@@ -426,199 +518,6 @@ function CriarUsuarioModal({ open, onClose, isRoot }: { open: boolean; onClose: 
           </button>
         </div>
       </form>
-    </Modal>
-  )
-}
-
-function ResetSenhaModal({ perfil, onClose }: { perfil: PerfilRow | null; onClose: () => void }) {
-  const [enviando, setEnviando] = useState(false)
-  if (!perfil) return null
-
-  async function enviar() {
-    if (!perfil?.email) {
-      toast.error('Usuário sem e-mail cadastrado')
-      return
-    }
-    setEnviando(true)
-    try {
-      const redirectTo = window.location.origin + '/login'
-      const { error } = await supabase.auth.resetPasswordForEmail(perfil.email, { redirectTo })
-      if (error) throw error
-      toast.success('Link de reset enviado pro e-mail')
-      onClose()
-    } catch (err) {
-      toast.error('Erro: ' + (err as Error).message)
-    } finally {
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <Modal open={!!perfil} onClose={onClose} title="Resetar senha" size="sm">
-      <div className="space-y-4">
-        <p className="text-sm text-slate-600">
-          Vamos enviar um link de redefinição de senha pro e-mail:
-        </p>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 font-mono text-sm">
-          {perfil.email}
-        </div>
-        <p className="text-xs text-slate-500">
-          O usuário recebe um e-mail com link pra escolher uma nova senha.
-          Link válido por 1 hora.
-        </p>
-        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
-          <button onClick={enviar} disabled={enviando} className="bg-marco-azul hover:bg-marco-azul-esc text-white font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
-            {enviando ? 'Enviando...' : 'Enviar link'}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-function AvisoModal({ perfil, onClose }: { perfil: PerfilRow | null; onClose: () => void }) {
-  const qc = useQueryClient()
-  const [texto, setTexto] = useState(perfil?.aviso ?? '')
-  const [salvando, setSalvando] = useState(false)
-
-  if (!perfil) return null
-
-  // Sincroniza quando troca de perfil
-  if (perfil && texto !== (perfil.aviso ?? '') && !salvando) {
-    // best-effort init — só na primeira render
-  }
-
-  async function salvar(remover = false) {
-    setSalvando(true)
-    try {
-      const { error } = await (supabase.from('perfis') as any)
-        .update({ aviso: remover ? null : (texto.trim() || null) })
-        .eq('id', perfil!.id)
-      if (error) throw error
-      qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success(remover ? 'Aviso removido' : 'Aviso salvo')
-      onClose()
-    } catch (err) {
-      toast.error('Erro: ' + (err as Error).message)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  return (
-    <Modal open={!!perfil} onClose={onClose} title={`Aviso para ${perfil.nome ?? perfil.email}`} size="md">
-      <div className="space-y-4">
-        <p className="text-sm text-slate-600">
-          Mensagem que aparece como banner amarelo no topo do painel desse usuário.
-          Útil pra avisos de cobrança, mudança de plano, manutenção, etc.
-        </p>
-        <textarea
-          value={texto}
-          onChange={e => setTexto(e.target.value)}
-          rows={4}
-          className="input w-full"
-          placeholder="Ex: Mensalidade em atraso. Regularize até dia 15 para evitar a suspensão do acesso."
-        />
-        <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
-          {perfil.aviso ? (
-            <button
-              onClick={() => salvar(true)}
-              disabled={salvando}
-              className="text-sm font-semibold text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-lg disabled:opacity-50"
-            >
-              Remover aviso
-            </button>
-          ) : <span />}
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button
-              onClick={() => salvar(false)}
-              disabled={salvando || !texto.trim()}
-              className="bg-marco-azul hover:bg-marco-azul-esc text-white font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50"
-            >
-              {salvando ? 'Salvando...' : 'Salvar aviso'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-function EditarPerfilModal({ perfil, onClose }: { perfil: PerfilRow | null; onClose: () => void }) {
-  const qc = useQueryClient()
-  const auth = useAuth()
-  const isRoot = auth.isRoot()
-  const [nome, setNome] = useState(perfil?.nome ?? '')
-  const [email, setEmail] = useState(perfil?.email ?? '')
-  const [salvando, setSalvando] = useState(false)
-
-  if (!perfil) return null
-
-  async function salvar() {
-    setSalvando(true)
-    try {
-      const novoEmail = email.trim().toLowerCase()
-      const emailMudou = novoEmail !== (perfil!.email ?? '').toLowerCase() && novoEmail.length > 0
-
-      // 1. Atualiza nome e email da tabela perfis
-      const { error } = await (supabase.from('perfis') as any)
-        .update({ nome: nome.trim() || null, email: novoEmail || null })
-        .eq('id', perfil!.id)
-      if (error) throw error
-
-      // 2. Se mudou o e-mail E é root, troca o e-mail de login (auth.users) via RPC
-      if (emailMudou && isRoot) {
-        const { error: rpcErr } = await (supabase.rpc as any)('root_atualizar_email', {
-          p_user_id: perfil!.id,
-          p_novo_email: novoEmail,
-        })
-        if (rpcErr) throw rpcErr
-      }
-
-      qc.invalidateQueries({ queryKey: ['perfis'] })
-      toast.success(
-        emailMudou && isRoot ? 'Perfil + e-mail de login atualizados' : 'Perfil atualizado'
-      )
-      onClose()
-    } catch (err) {
-      toast.error('Erro: ' + (err as Error).message)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  return (
-    <Modal open={!!perfil} onClose={onClose} title="Editar perfil" size="sm">
-      <div className="space-y-4">
-        <label className="block">
-          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nome</span>
-          <input value={nome} onChange={e => setNome(e.target.value)} className="input" />
-        </label>
-        <label className="block">
-          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">
-            E-mail {isRoot && <span className="text-marco-azul">(login)</span>}
-          </span>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
-          {isRoot ? (
-            <span className="text-xs text-amber-700 mt-1 block">
-              ⚠ Mudar o e-mail aqui também troca o e-mail de login no Supabase Auth.
-              O usuário precisará entrar com o novo e-mail.
-            </span>
-          ) : (
-            <span className="text-xs text-slate-500 mt-1 block">
-              Só altera o nome de exibição. Para mudar o login, peça pra um root.
-            </span>
-          )}
-        </label>
-        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
-          <button onClick={salvar} disabled={salvando} className="bg-marco-azul hover:bg-marco-azul-esc text-white font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50">
-            {salvando ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
-      </div>
     </Modal>
   )
 }
