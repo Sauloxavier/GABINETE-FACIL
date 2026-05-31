@@ -130,7 +130,7 @@ function UsuariosPage() {
       <div className="bg-marco-azul/5 border border-marco-azul/20 rounded-2xl p-5 mt-6 text-sm text-slate-700">
         💡 <strong>Como funciona:</strong>
         <ul className="list-disc list-inside mt-2 space-y-1">
-          <li><strong>Admin</strong> — pode configurar WAHA/n8n/IA, gerenciar equipe, ver tudo</li>
+          <li><strong>Admin</strong> — pode configurar WAHA/IA, gerenciar equipe, ver tudo</li>
           <li><strong>Assessor</strong> — usa o painel sem mexer em configurações</li>
           <li>Convidar: cria conta nova no Supabase Auth → vincula perfil ao gabinete</li>
         </ul>

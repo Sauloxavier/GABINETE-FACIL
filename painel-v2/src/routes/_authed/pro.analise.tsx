@@ -4,7 +4,7 @@ import { BrainCircuit, Sparkles, Loader2 } from 'lucide-react'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { useDemandas } from '@/features/demandas/hooks'
 import { useConfig } from '@/features/config/hooks'
-import { N8nClient } from '@/lib/n8n'
+import { OpenAIClient } from '@/lib/openai'
 
 export const Route = createFileRoute('/_authed/pro/analise')({
   component: AnalisePage,
@@ -42,26 +42,26 @@ function AnalisePage() {
     for (const d of demandas ?? []) tipos.set(d.tipo, (tipos.get(d.tipo) ?? 0) + 1)
     const topTipos = [...tipos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => k)
 
-    const client = new N8nClient(config)
-    const r = await client.call<{ analise: string }>('analiseIA', {
-      dados: {
-        totalEleitores,
-        demandasAbertas,
-        demandasResolvidas,
-        topBairros,
-        topTipos,
-        conquistados,
-        metaConquistados: Math.round(totalEleitores * 0.3),
-      },
-      openaiKey: config.openai_api_key,
-      openaiModel: config.openai_model,
-    })
+    const dados = {
+      totalEleitores,
+      demandasAbertas,
+      demandasResolvidas,
+      topBairros,
+      topTipos,
+      conquistados,
+      metaConquistados: Math.round(totalEleitores * 0.3),
+    }
 
-    setGerando(false)
-    if (r.ok && r.data?.analise) {
-      setAnalise(r.data.analise)
-    } else {
-      setErro(r.erro ?? 'Falha ao gerar análise')
+    try {
+      const ai = new OpenAIClient(config)
+      const system = `Você é assessor estratégico do mandato do vereador Marco Xavier (Limeira-SP, PP, 2026-2028). Base eleitoral: Paróquia Sta Luzia, TG 94, Vista Alegre, Novo Horizonte, Nova Suíça. Equipe: Marco + 2 assessores. NUNCA mencionar o número eleitoral 11200 (mandato, não campanha).`
+      const prompt = `Olha os dados do mandato:\n\n${JSON.stringify(dados, null, 2)}\n\nGera um diagnóstico em markdown com 5 seções:\n1. Resumo executivo (3 bullets)\n2. O que está indo bem\n3. Gargalos / alertas\n4. Bairros e pautas pra atacar\n5. Próximas 4 semanas (3 ações concretas)\n\nTom: direto, popular, sem jargão. Use os dados reais. Não invente.`
+      const out = await ai.chamar({ system, prompt, maxTokens: 2500 })
+      setAnalise(out)
+    } catch (err) {
+      setErro((err as Error).message)
+    } finally {
+      setGerando(false)
     }
   }
 

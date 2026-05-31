@@ -8,11 +8,6 @@ export interface AppConfig {
   waha_url: string
   waha_api_key: string
   waha_session: string
-  // n8n
-  n8n_url: string
-  n8n_api_key: string
-  n8n_auth_header: string
-  n8n_webhooks: Record<string, string>
   // OpenAI
   openai_api_key: string
   openai_model: string
@@ -33,19 +28,6 @@ const defaults: AppConfig = {
   waha_url: '',
   waha_api_key: '',
   waha_session: 'default',
-  n8n_url: 'https://iamob-n8n.fqejv1.easypanel.host',
-  n8n_api_key: '',
-  n8n_auth_header: '',
-  n8n_webhooks: {
-    disparo: 'mx-disparo',
-    trafego: 'mx-trafego',
-    atendimentoIA: 'mx-atendimento-ia',
-    analiseIA: 'mx-analise-ia',
-    novaDemanda: 'mx-nova-demanda',
-    novaSolicitacao: 'mx-nova-solicitacao',
-    aniversario: 'mx-aniversario',
-    boasVindas: 'mx-boas-vindas',
-  },
   openai_api_key: '',
   openai_model: 'gpt-4o-mini',
   atendimento_ia_prompt: '',

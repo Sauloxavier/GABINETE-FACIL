@@ -1,62 +1,139 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Workflow, ExternalLink } from 'lucide-react'
-import { useConfig } from '@/features/config/hooks'
+import { useEffect, useState } from 'react'
+import { Workflow, Loader2, Power, Pencil } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { toast } from '@/components/ui/Toast'
 
 export const Route = createFileRoute('/_authed/pro/automacoes')({
   component: AutomacoesPage,
 })
 
-const WORKFLOWS = [
-  { id: 'disparo', titulo: 'Disparo em massa', desc: 'Envia lista de contatos via WAHA com intervalo humano', cor: 'bg-sky-100 text-sky-600' },
-  { id: 'atendimentoIA', titulo: 'Atendimento IA', desc: 'OpenAI responde mensagens recebidas no WhatsApp', cor: 'bg-purple-100 text-purple-600' },
-  { id: 'analiseIA', titulo: 'Análise do mandato', desc: 'IA gera diagnóstico baseado nos dados do gabinete', cor: 'bg-fuchsia-100 text-fuchsia-600' },
-  { id: 'trafego', titulo: 'Tráfego pago', desc: 'Gera copy + visual de anúncio com IA', cor: 'bg-amber-100 text-amber-600' },
-  { id: 'aniversario', titulo: 'Aniversariantes', desc: 'Dispara felicitação automática no dia', cor: 'bg-rose-100 text-rose-600' },
-  { id: 'boasVindas', titulo: 'Boas-vindas', desc: 'Saudação ao cadastrar novo eleitor', cor: 'bg-emerald-100 text-emerald-600' },
-  { id: 'novaDemanda', titulo: 'Nova demanda', desc: 'Notifica equipe quando abre atendimento', cor: 'bg-blue-100 text-blue-600' },
-  { id: 'novaSolicitacao', titulo: 'Nova solicitação', desc: 'Notifica equipe quando chega do site público', cor: 'bg-indigo-100 text-indigo-600' },
-]
+interface Automacao {
+  id: string
+  nome: string
+  descricao: string | null
+  tipo: string
+  ativo: boolean
+  gatilho: Record<string, unknown>
+  acao: Record<string, unknown>
+  ultima_execucao: string | null
+  total_execucoes: number
+  total_falhas: number
+}
+
+const TIPO_META: Record<string, { label: string; emoji: string; cor: string }> = {
+  boas_vindas:      { label: 'Boas-vindas a novo eleitor',  emoji: '👋', cor: 'bg-emerald-100 text-emerald-700' },
+  fup:              { label: 'FUP de atendimento parado',    emoji: '🔁', cor: 'bg-blue-100 text-blue-700' },
+  reativacao:       { label: 'Reativar eleitor frio',        emoji: '❄️', cor: 'bg-sky-100 text-sky-700' },
+  aniversario:      { label: 'Aniversário do eleitor',       emoji: '🎂', cor: 'bg-rose-100 text-rose-700' },
+  resposta_keyword: { label: 'Auto-resposta por palavra',    emoji: '🔑', cor: 'bg-amber-100 text-amber-700' },
+}
 
 function AutomacoesPage() {
-  const { data: config } = useConfig()
+  const [automacoes, setAutomacoes] = useState<Automacao[]>([])
+  const [loading, setLoading] = useState(true)
+  const [erroSchema, setErroSchema] = useState(false)
+
+  async function carregar() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('automacoes')
+      .select('*')
+      .order('criado_em', { ascending: false })
+    if (error) {
+      console.error('[automacoes]', error)
+      // tabela ainda não criada (migration 09 não rodou)
+      if (error.code === 'PGRST205' || error.message.includes('automacoes')) {
+        setErroSchema(true)
+      }
+    } else {
+      setAutomacoes((data as Automacao[]) ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  async function toggle(a: Automacao) {
+    const { error } = await (supabase.from('automacoes') as any)
+      .update({ ativo: !a.ativo })
+      .eq('id', a.id)
+    if (error) {
+      toast.error('Erro: ' + error.message)
+    } else {
+      toast.success(a.ativo ? 'Automação pausada' : 'Automação ativada')
+      carregar()
+    }
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 mb-6 flex items-center gap-2">
-        <Workflow className="w-8 h-8 text-marco-azul" /> Automações (n8n)
+        <Workflow className="w-8 h-8 text-marco-azul" /> Automações
       </h1>
 
-      <div className="bg-marco-azul/5 border border-marco-azul/20 rounded-2xl p-5 mb-6 text-sm text-slate-700">
-        🔗 As automações rodam no <strong>n8n self-hosted</strong> em
-        <a href={config?.n8n_url} target="_blank" className="inline-flex items-center gap-0.5 underline text-marco-azul ml-1 font-bold">
-          {config?.n8n_url || 'não configurado'} <ExternalLink className="w-3 h-3" />
-        </a>.
-        Os webhooks são chamados pelo painel e o n8n executa os workflows.
+      {erroSchema && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 mb-4 text-sm text-rose-800">
+          ⚠️ A tabela <code>automacoes</code> não existe no banco. Rode a migration{' '}
+          <code>painel/supabase/09-automacoes.sql</code> no Supabase Studio.
+        </div>
+      )}
+
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-sm text-amber-900">
+        ⚙️ Pra rodar 24/7, o worker <code>scripts/automacoes/</code> precisa estar ativo na VM.
+        Sem ele, as regras ficam configuradas mas não disparam sozinhas.
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {WORKFLOWS.map(wf => {
-          const slug = config?.n8n_webhooks?.[wf.id]
-          const configurado = !!slug
-          return (
-            <div key={wf.id} className="bg-white rounded-2xl ring-soft p-5">
-              <div className={`w-12 h-12 rounded-2xl ${wf.cor} flex items-center justify-center mb-3`}>
-                <Workflow className="w-6 h-6" />
+      {loading ? (
+        <div className="text-center py-12 text-slate-400">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+        </div>
+      ) : automacoes.length === 0 ? (
+        <div className="bg-white rounded-2xl ring-soft p-12 text-center text-slate-500">
+          Sem automações ainda. Rode a migration 09 pra criar os modelos prontos
+          (boas-vindas, FUP, reativação, aniversário).
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {automacoes.map(a => {
+            const meta = TIPO_META[a.tipo] ?? { label: a.tipo, emoji: '⚙️', cor: 'bg-slate-100 text-slate-700' }
+            return (
+              <div key={a.id} className="bg-white rounded-2xl ring-soft p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div className={`w-12 h-12 rounded-2xl ${meta.cor} flex items-center justify-center text-2xl`}>
+                    {meta.emoji}
+                  </div>
+                  <button
+                    onClick={() => toggle(a)}
+                    className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 ${
+                      a.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    <Power className="w-3 h-3" /> {a.ativo ? 'ATIVA' : 'PAUSADA'}
+                  </button>
+                </div>
+                <h3 className="font-black text-slate-800 mb-1">{a.nome}</h3>
+                <p className="text-xs text-slate-500 mb-3">{meta.label}</p>
+                {a.descricao && (
+                  <p className="text-xs text-slate-600 mb-3">{a.descricao}</p>
+                )}
+                <div className="flex items-center gap-3 text-xs border-t border-slate-100 pt-3">
+                  <span className="text-emerald-600 font-bold">✓ {a.total_execucoes ?? 0}</span>
+                  <span className="text-rose-600 font-bold">✗ {a.total_falhas ?? 0}</span>
+                  <span className="text-slate-400 ml-auto">
+                    {a.ultima_execucao
+                      ? new Date(a.ultima_execucao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : 'nunca'}
+                  </span>
+                </div>
+                <button className="mt-3 w-full text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg flex items-center justify-center gap-1">
+                  <Pencil className="w-3 h-3" /> Editar (em breve)
+                </button>
               </div>
-              <h3 className="font-black text-slate-800 mb-1">{wf.titulo}</h3>
-              <p className="text-xs text-slate-500 mb-3">{wf.desc}</p>
-              <div className="flex items-center justify-between text-xs">
-                <span className={configurado ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
-                  {configurado ? '✓ ' + slug : '⚪ não configurado'}
-                </span>
-                <a href="/config" className="text-marco-azul font-semibold hover:underline">
-                  Configurar →
-                </a>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

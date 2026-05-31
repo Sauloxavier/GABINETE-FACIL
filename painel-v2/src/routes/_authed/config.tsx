@@ -1,15 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
-import { Settings, Phone, Link2, Sparkles, Users, Save, CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { Settings, Phone, Sparkles, Users, Save, CheckCircle2 } from 'lucide-react'
 import { useConfig, useSalvarConfig } from '@/features/config/hooks'
-import { N8nClient } from '@/lib/n8n'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_authed/config')({
   component: ConfigPage,
 })
 
-type Aba = 'geral' | 'whatsapp' | 'n8n' | 'ia' | 'equipe'
+type Aba = 'geral' | 'whatsapp' | 'ia' | 'equipe'
 
 function ConfigPage() {
   const { data: config, isLoading } = useConfig()
@@ -28,14 +27,12 @@ function ConfigPage() {
       <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 ring-soft overflow-x-auto">
         <TabButton ativa={aba === 'geral'} onClick={() => setAba('geral')} icon={Settings} label="Geral" />
         <TabButton ativa={aba === 'whatsapp'} onClick={() => setAba('whatsapp')} icon={Phone} label="WhatsApp" />
-        <TabButton ativa={aba === 'n8n'} onClick={() => setAba('n8n')} icon={Link2} label="n8n" />
         <TabButton ativa={aba === 'ia'} onClick={() => setAba('ia')} icon={Sparkles} label="IA" />
         <TabButton ativa={aba === 'equipe'} onClick={() => setAba('equipe')} icon={Users} label="Equipe" />
       </div>
 
       {aba === 'geral' && <AbaGeral />}
       {aba === 'whatsapp' && <AbaWhatsApp />}
-      {aba === 'n8n' && <AbaN8n />}
       {aba === 'ia' && <AbaIA />}
       {aba === 'equipe' && <AbaEquipe />}
     </div>
@@ -112,91 +109,6 @@ function AbaWhatsApp() {
       </div>
       <BotaoSalvar
         onClick={() => salvar.mutate({ waha_url: url, waha_api_key: apiKey, waha_session: session })}
-        salvando={salvar.isPending}
-        sucesso={salvar.isSuccess}
-      />
-    </Card>
-  )
-}
-
-function AbaN8n() {
-  const { data: config } = useConfig()
-  const salvar = useSalvarConfig()
-  const [url, setUrl] = useState(config?.n8n_url ?? '')
-  const [apiKey, setApiKey] = useState(config?.n8n_api_key ?? '')
-  const [authHeader, setAuthHeader] = useState(config?.n8n_auth_header ?? '')
-  const [webhooks, setWebhooks] = useState<Record<string, string>>(config?.n8n_webhooks ?? {})
-  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; msg: string } | undefined>>({})
-
-  const client = useMemo(() => new N8nClient({
-    n8n_url: url, n8n_api_key: apiKey, n8n_auth_header: authHeader, n8n_webhooks: webhooks,
-  }), [url, apiKey, authHeader, webhooks])
-
-  const workflowsList: Array<{ id: string; label: string }> = [
-    { id: 'disparo', label: 'Disparo em massa' },
-    { id: 'trafego', label: 'Tráfego pago' },
-    { id: 'atendimentoIA', label: 'Atendimento por IA' },
-    { id: 'analiseIA', label: 'IA analisa mandato' },
-    { id: 'novaDemanda', label: 'Evento — nova demanda' },
-    { id: 'novaSolicitacao', label: 'Evento — nova solicitação' },
-    { id: 'aniversario', label: 'Aniversariantes' },
-    { id: 'boasVindas', label: 'Boas-vindas' },
-  ]
-
-  async function testar(wf: string) {
-    setTestResults(r => ({ ...r, [wf]: undefined }))
-    const r = await client.testar(wf)
-    setTestResults(rr => ({ ...rr, [wf]: { ok: r.ok, msg: r.ok ? `OK ${r.ms}ms` : (r.erro ?? 'erro') } }))
-  }
-
-  return (
-    <Card titulo="Integração n8n" desc="Os recursos Pro rodam via workflows do seu n8n self-hosted.">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="sm:col-span-2">
-          <Field label="URL do n8n">
-            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://n8n.seudominio.com" className="input font-mono" />
-          </Field>
-        </div>
-        <Field label="Header de auth (opcional)">
-          <input value={authHeader} onChange={e => setAuthHeader(e.target.value)} placeholder="X-N8N-API-KEY" className="input font-mono" />
-        </Field>
-      </div>
-      <Field label="API Key / Token (opcional)">
-        <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="input font-mono" />
-      </Field>
-
-      <h3 className="font-bold text-slate-700 text-sm mt-6 mb-2">Webhooks por recurso</h3>
-      <div className="space-y-2">
-        {workflowsList.map(wf => {
-          const result = testResults[wf.id]
-          return (
-            <div key={wf.id} className="grid grid-cols-12 gap-2 items-center bg-slate-50 rounded-lg p-2">
-              <div className="col-span-4 text-sm font-semibold">{wf.label}</div>
-              <input
-                value={webhooks[wf.id] ?? ''}
-                onChange={e => setWebhooks(w => ({ ...w, [wf.id]: e.target.value }))}
-                placeholder={`mx-${wf.id}`}
-                className="col-span-6 px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-mono text-xs"
-              />
-              <button
-                onClick={() => testar(wf.id)}
-                disabled={!url || !webhooks[wf.id]}
-                className="col-span-2 bg-marco-azul text-white text-xs font-bold py-1.5 rounded-lg disabled:opacity-40"
-              >
-                {result === undefined ? 'Testar' : result.ok ? '✓ OK' : '✗ Falhou'}
-              </button>
-              {result && (
-                <div className={cn('col-span-12 text-xs', result.ok ? 'text-emerald-600' : 'text-rose-600')}>
-                  {result.msg}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      <BotaoSalvar
-        onClick={() => salvar.mutate({ n8n_url: url, n8n_api_key: apiKey, n8n_auth_header: authHeader, n8n_webhooks: webhooks })}
         salvando={salvar.isPending}
         sucesso={salvar.isSuccess}
       />

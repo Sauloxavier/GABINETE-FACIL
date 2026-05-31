@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Sparkles, ExternalLink } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useConfig, useSalvarConfig } from '@/features/config/hooks'
 import { useState, useEffect } from 'react'
 
@@ -30,8 +30,8 @@ function IAPage() {
           <div>
             <h2 className="text-xl font-black">IA responde mensagens recebidas no WhatsApp</h2>
             <p className="text-white/90 mt-1 text-sm">
-              O eleitor manda WhatsApp pro gabinete → n8n recebe → ChatGPT gera resposta → WAHA responde.
-              Tudo automático, com o tom do mandato.
+              Eleitor manda WhatsApp pro gabinete → o script de atendimento IA roda na VM,
+              chama o ChatGPT e responde via WAHA. Tudo automático, com o tom do mandato.
             </p>
           </div>
         </div>
@@ -77,11 +77,11 @@ function IAPage() {
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mt-6 text-sm text-amber-900">
-        ⚙️ <strong>Setup necessário:</strong>
+        ⚙️ <strong>Setup necessário (uma vez):</strong>
         <ol className="list-decimal list-inside mt-2 space-y-1">
           <li>Configurar OpenAI API key em <a href="/config" className="underline font-bold">Configurações › IA</a></li>
-          <li>Ter o workflow <code>mx-atendimento-ia</code> ativo no n8n <a href="https://iamob-n8n.fqejv1.easypanel.host" target="_blank" className="inline-flex items-center gap-0.5 underline">(abrir <ExternalLink className="w-3 h-3" />)</a></li>
-          <li>WAHA precisa enviar webhook de "mensagem recebida" pro n8n (configurar no WAHA Plus)</li>
+          <li>Configurar WAHA em <a href="/config" className="underline font-bold">Configurações › WhatsApp</a></li>
+          <li>Rodar o script <code>scripts/atendimento-ia</code> na VM com <code>pm2 start index.js --name atendimento-ia</code></li>
         </ol>
       </div>
     </div>

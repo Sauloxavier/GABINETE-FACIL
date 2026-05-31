@@ -81,7 +81,8 @@ function LoginPage() {
         </form>
 
         <div className="text-center text-xs text-slate-400 mt-6">
-          MazyOS · Gabinete Marco Xavier
+          Gabinete Marco Xavier
+          <div className="text-[10px] text-slate-300 mt-1">Desenvolvido por Saulo Xavier</div>
         </div>
       </div>
     </div>

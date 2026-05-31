@@ -6,17 +6,18 @@ import { useEleitores } from '@/features/eleitores/hooks'
 import { DemandaModal } from '@/features/demandas/components/DemandaModal'
 import { cn } from '@/lib/utils'
 import type { Demanda } from '@/lib/database.types'
+import { STATUS_DEMANDA, labelStatusDemanda } from '@/lib/status-demanda'
 
 export const Route = createFileRoute('/_authed/atendimentos/')({
   component: AtendimentosPage,
 })
 
-const STATUS_COLS = ['Aberta', 'Em andamento', 'Resolvida', 'Cancelada']
+const STATUS_COLS = STATUS_DEMANDA.map(s => s.valor)
 const STATUS_CORES: Record<string, { bg: string; border: string; dot: string }> = {
-  'Aberta':       { bg: 'bg-amber-50', border: 'border-amber-300', dot: 'bg-amber-500' },
-  'Em andamento': { bg: 'bg-blue-50', border: 'border-blue-300', dot: 'bg-blue-500' },
+  'Aberta':       { bg: 'bg-amber-50',   border: 'border-amber-300',   dot: 'bg-amber-500' },
+  'Em andamento': { bg: 'bg-blue-50',    border: 'border-blue-300',    dot: 'bg-blue-500' },
   'Resolvida':    { bg: 'bg-emerald-50', border: 'border-emerald-300', dot: 'bg-emerald-500' },
-  'Cancelada':    { bg: 'bg-slate-100', border: 'border-slate-300', dot: 'bg-slate-400' },
+  'Cancelada':    { bg: 'bg-slate-100',  border: 'border-slate-300',   dot: 'bg-slate-400' },
 }
 
 type Modo = 'lista' | 'kanban'
@@ -113,8 +114,8 @@ function AtendimentosPage() {
             onChange={e => setFiltroStatus(e.target.value)}
             className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
           >
-            <option value="">Todos status</option>
-            {STATUS_COLS.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="">Todos andamentos</option>
+            {STATUS_DEMANDA.map(s => <option key={s.valor} value={s.valor}>{s.label}</option>)}
           </select>
         )}
         <input
@@ -170,7 +171,7 @@ function ListaView({ demandas, mapEleitores, onEdit }: { demandas: Demanda[]; ma
                     d.status === 'Em andamento' && 'bg-blue-100 text-blue-700',
                     d.status === 'Aberta' && 'bg-amber-100 text-amber-700',
                     d.status === 'Cancelada' && 'bg-slate-200 text-slate-600',
-                  )}>{d.status}</span>
+                  )}>{labelStatusDemanda(d.status)}</span>
                 </div>
                 <div className="font-semibold text-slate-800">{d.descricao}</div>
                 <div className="text-sm text-slate-500 mt-1">
@@ -231,7 +232,7 @@ function KanbanView({ demandas, mapEleitores, onEdit }: { demandas: Demanda[]; m
             >
               <div className="px-4 py-3 flex items-center gap-2 border-b border-white/50">
                 <span className={cn(cor.dot, 'w-2.5 h-2.5 rounded-full')} />
-                <span className="font-bold text-slate-700 text-sm">{status}</span>
+                <span className="font-bold text-slate-700 text-sm">{labelStatusDemanda(status)}</span>
                 <span className="text-xs font-bold bg-white text-slate-500 rounded-full px-2 py-0.5">{cards.length}</span>
               </div>
               <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)] scrollbar-thin">

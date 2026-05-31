@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Megaphone, Sparkles, Loader2 } from 'lucide-react'
 import { useConfig } from '@/features/config/hooks'
-import { N8nClient } from '@/lib/n8n'
+import { OpenAIClient, extrairJson } from '@/lib/openai'
 
 export const Route = createFileRoute('/_authed/pro/trafego')({
   component: TrafegoPage,
@@ -31,18 +31,21 @@ function TrafegoPage() {
     setGerando(true)
     setErro(null)
     setCriativo(null)
-    const client = new N8nClient(config)
-    const r = await client.call<{ criativo: typeof criativo }>('trafego', {
-      ...briefing,
-      bairros: briefing.bairros.split(',').map(s => s.trim()).filter(Boolean),
-      openaiKey: config.openai_api_key,
-      openaiModel: config.openai_model,
-    })
-    setGerando(false)
-    if (r.ok && r.data?.criativo) {
-      setCriativo(r.data.criativo)
-    } else {
-      setErro(r.erro ?? 'Falha ao gerar criativo')
+    try {
+      const ai = new OpenAIClient(config)
+      const system = `Você é estrategista de tráfego pago do gabinete do vereador Marco Xavier (Limeira-SP). Cria criativos pra Meta Ads (Instagram/Facebook). Tom popular, fé/família/união. NUNCA usar o número eleitoral 11200 em material de mandato. Responda em JSON.`
+      const prompt = `Briefing:\n${JSON.stringify({
+        ...briefing,
+        bairros: briefing.bairros.split(',').map(s => s.trim()).filter(Boolean),
+      }, null, 2)}\n\nDevolva JSON com:\n{\n  "titulo": "...",\n  "texto_principal": "texto pra Instagram (3-6 linhas)",\n  "cta": "...",\n  "prompt_imagem": "descrição do visual sugerido pra carrossel/imagem",\n  "hashtags": ["#tag1", "#tag2", ...] (8-12 hashtags relevantes pra Limeira-SP)\n}`
+      const out = await ai.chamar({ system, prompt, maxTokens: 1500, json: true })
+      const json = extrairJson<typeof criativo>(out)
+      if (!json) throw new Error('IA devolveu resposta inválida')
+      setCriativo(json)
+    } catch (err) {
+      setErro((err as Error).message)
+    } finally {
+      setGerando(false)
     }
   }
 

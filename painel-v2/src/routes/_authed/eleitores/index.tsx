@@ -98,6 +98,7 @@ function EleitoresPage() {
           <option value="Não trabalhado">Não trabalhado</option>
           <option value="Em prospecção">Em prospecção</option>
           <option value="Conquistado">Conquistado</option>
+          <option value="Incerto">Incerto</option>
           <option value="Perdido">Perdido</option>
         </select>
       </div>
@@ -164,7 +165,10 @@ function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Elei
         {iniciais(e.nome)}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-slate-800 truncate">{e.nome}</div>
+        <div className="font-semibold text-slate-800 truncate flex items-center gap-2">
+          {e.codigo && <span className="text-[10px] font-mono font-bold text-marco-azul bg-marco-azul/10 px-1.5 py-0.5 rounded">{e.codigo}</span>}
+          {e.nome}
+        </div>
         <div className="text-xs text-slate-500 truncate mt-0.5">
           {formatTelefone(e.telefone) || 'sem telefone'}
           {e.bairro && <> · {e.bairro}</>}
@@ -175,6 +179,7 @@ function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Elei
           'hidden sm:inline text-xs font-bold px-2 py-1 rounded-full flex-shrink-0',
           e.envolvimento === 'Conquistado' && 'bg-purple-100 text-purple-700',
           e.envolvimento === 'Em prospecção' && 'bg-emerald-100 text-emerald-700',
+          e.envolvimento === 'Incerto' && 'bg-amber-100 text-amber-700',
           e.envolvimento === 'Perdido' && 'bg-rose-100 text-rose-700',
           (!e.envolvimento || e.envolvimento === 'Não trabalhado') && 'bg-blue-100 text-blue-700',
         )}

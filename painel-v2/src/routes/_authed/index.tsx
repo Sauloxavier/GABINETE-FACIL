@@ -71,9 +71,9 @@ function InicioPage() {
       </div>
 
       <div className="bg-white rounded-2xl ring-soft p-6 text-sm text-slate-500">
-        ✨ Bem-vindo ao novo painel MazyOS — refatorado com React, TanStack Router e Supabase.
+        ✨ Bem-vindo ao painel do gabinete Marco Xavier.
         <br />
-        Aguenta milhares de contatos sem travar.
+        <span className="text-xs text-slate-400">Desenvolvido por Saulo Xavier</span>
       </div>
     </div>
   )

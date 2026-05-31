@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Save, Trash2 } from 'lucide-react'
+import { Save, Trash2, MessageCircle, User } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { useSalvarDemanda, useDeletarDemanda } from '@/features/demandas/hooks'
 import { useEleitores } from '@/features/eleitores/hooks'
+import { useNavigate } from '@tanstack/react-router'
 import type { Demanda, DemandaInsert } from '@/lib/database.types'
-
-const STATUS = ['Aberta', 'Em andamento', 'Resolvida', 'Cancelada']
+import { STATUS_DEMANDA } from '@/lib/status-demanda'
 const TIPOS = [
   'Saúde', 'Educação', 'Infraestrutura', 'Iluminação', 'Asfalto / Buraco',
   'Limpeza pública', 'Transporte', 'Segurança', 'Esporte / Cultura',
@@ -101,6 +101,23 @@ export function DemandaModal({ open, onClose, demanda, eleitorIdInicial, statusI
   }
 
   const eleitorSelecionado = eleitores?.find(e => e.id === form.eleitor_id)
+  const navigate = useNavigate()
+
+  function abrirWhatsAppEleitor() {
+    if (!eleitorSelecionado?.telefone) {
+      toast.error('Eleitor sem telefone cadastrado')
+      return
+    }
+    const num = eleitorSelecionado.telefone.replace(/\D/g, '')
+    const numFinal = num.startsWith('55') ? num : '55' + num
+    window.open(`https://wa.me/${numFinal}`, '_blank')
+  }
+
+  function abrirCadastroEleitor() {
+    if (!eleitorSelecionado) return
+    navigate({ to: '/eleitores', search: { id: eleitorSelecionado.id } as never })
+    onClose()
+  }
 
   return (
     <Modal open={open} onClose={onClose} title={demanda ? 'Editar atendimento' : 'Novo atendimento'} size="lg">
@@ -108,11 +125,29 @@ export function DemandaModal({ open, onClose, demanda, eleitorIdInicial, statusI
         {/* Eleitor */}
         <Field label="Eleitor *">
           {eleitorSelecionado ? (
-            <div className="flex items-center gap-2 p-2 bg-marco-azul/5 rounded-lg">
-              <span className="flex-1 font-semibold text-marco-azul">{eleitorSelecionado.nome}</span>
-              <button type="button" onClick={() => setForm(f => ({ ...f, eleitor_id: '' }))} className="text-xs text-slate-500 hover:underline">
-                trocar
-              </button>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 bg-marco-azul/5 rounded-lg">
+                <span className="flex-1 font-semibold text-marco-azul">{eleitorSelecionado.nome}</span>
+                <button type="button" onClick={() => setForm(f => ({ ...f, eleitor_id: '' }))} className="text-xs text-slate-500 hover:underline">
+                  trocar
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={abrirCadastroEleitor}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg flex items-center justify-center gap-1"
+                >
+                  <User className="w-3 h-3" /> Ver cadastro do eleitor
+                </button>
+                <button
+                  type="button"
+                  onClick={abrirWhatsAppEleitor}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center justify-center gap-1"
+                >
+                  <MessageCircle className="w-3 h-3" /> Abrir WhatsApp
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -148,9 +183,9 @@ export function DemandaModal({ open, onClose, demanda, eleitorIdInicial, statusI
               {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Status">
+          <Field label="Andamento">
             <select value={form.status ?? 'Aberta'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="input">
-              {STATUS.map(s => <option key={s} value={s}>{s}</option>)}
+              {STATUS_DEMANDA.map(s => <option key={s.valor} value={s.valor}>{s.label}</option>)}
             </select>
           </Field>
         </div>

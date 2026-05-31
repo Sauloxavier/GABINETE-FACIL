@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { Sidebar } from '@/features/auth/components/Sidebar'
 import { Topbar } from '@/features/auth/components/Topbar'
+import { useSessionTimeout } from '@/features/auth/hooks/useSessionTimeout'
 import { useState } from 'react'
 import type { AuthState } from '@/store/auth'
 
@@ -19,6 +20,7 @@ export const Route = createFileRoute('/_authed')({
 
 function AuthedLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  useSessionTimeout()
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

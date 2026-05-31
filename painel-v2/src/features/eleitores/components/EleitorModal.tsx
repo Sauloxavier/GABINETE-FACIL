@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Save, Trash2 } from 'lucide-react'
+import { Save, Trash2, Plus } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { useSalvarEleitor, useDeletarEleitor } from '@/features/eleitores/hooks'
-import { useConfig } from '@/features/config/hooks'
+import { useConfig, useSalvarConfig } from '@/features/config/hooks'
 import type { Eleitor, EleitorInsert, Envolvimento } from '@/lib/database.types'
 
 interface Props {
@@ -12,12 +12,34 @@ interface Props {
   eleitor?: Eleitor | null
 }
 
-const ENVOLVIMENTOS: Envolvimento[] = ['Não trabalhado', 'Em prospecção', 'Conquistado', 'Perdido']
+const ENVOLVIMENTOS: Envolvimento[] = ['Não trabalhado', 'Em prospecção', 'Conquistado', 'Incerto', 'Perdido']
 
 export function EleitorModal({ open, onClose, eleitor }: Props) {
   const { data: config } = useConfig()
   const salvar = useSalvarEleitor()
   const deletar = useDeletarEleitor()
+  const salvarConfig = useSalvarConfig()
+  const [novoMarcador, setNovoMarcador] = useState('')
+  const [novoNicho, setNovoNicho] = useState('')
+
+  async function adicionarMarcador() {
+    const m = novoMarcador.trim()
+    if (!m) return
+    const atuais = config?.marcadores ?? []
+    if (atuais.includes(m)) { toast.error('Marcador já existe'); return }
+    await salvarConfig.mutateAsync({ marcadores: [...atuais, m] })
+    setForm(f => ({ ...f, marcadores: [...(f.marcadores ?? []), m] }))
+    setNovoMarcador('')
+  }
+  async function adicionarNicho() {
+    const n = novoNicho.trim()
+    if (!n) return
+    const atuais = config?.nichos ?? []
+    if (atuais.includes(n)) { toast.error('Nicho já existe'); return }
+    await salvarConfig.mutateAsync({ nichos: [...atuais, n] })
+    setForm(f => ({ ...f, nichos: [...(f.nichos ?? []), n] }))
+    setNovoNicho('')
+  }
 
   const [form, setForm] = useState<EleitorInsert>({
     nome: '',
@@ -100,6 +122,12 @@ export function EleitorModal({ open, onClose, eleitor }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={eleitor ? 'Editar eleitor' : 'Novo eleitor'} size="lg">
       <form onSubmit={onSubmit} className="space-y-4">
+        {eleitor?.codigo && (
+          <div className="bg-marco-azul/5 border border-marco-azul/20 rounded-lg px-3 py-2 text-sm">
+            <span className="text-xs text-slate-500">Código: </span>
+            <span className="font-mono font-bold text-marco-azul">{eleitor.codigo}</span>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nome *">
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required className="input" />
@@ -149,10 +177,10 @@ export function EleitorModal({ open, onClose, eleitor }: Props) {
           </select>
         </Field>
 
-        {(config?.marcadores?.length ?? 0) > 0 && (
-          <div>
-            <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Marcadores</span>
-            <div className="flex flex-wrap gap-1.5">
+        <div>
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Marcadores</span>
+          {(config?.marcadores?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
               {config!.marcadores.map(m => (
                 <button
                   type="button"
@@ -164,13 +192,26 @@ export function EleitorModal({ open, onClose, eleitor }: Props) {
                 </button>
               ))}
             </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={novoMarcador}
+              onChange={e => setNovoMarcador(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarMarcador() } }}
+              placeholder="Criar novo marcador..."
+              className="input flex-1 text-xs"
+            />
+            <button type="button" onClick={adicionarMarcador} disabled={!novoMarcador.trim() || salvarConfig.isPending}
+              className="bg-marco-azul text-white text-xs font-bold px-3 rounded-lg flex items-center gap-1 disabled:opacity-50">
+              <Plus className="w-3 h-3" /> Add
+            </button>
           </div>
-        )}
+        </div>
 
-        {(config?.nichos?.length ?? 0) > 0 && (
-          <div>
-            <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nichos</span>
-            <div className="flex flex-wrap gap-1.5">
+        <div>
+          <span className="text-xs font-bold text-slate-600 uppercase mb-1 block">Nichos</span>
+          {(config?.nichos?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
               {config!.nichos.map(n => (
                 <button
                   type="button"
@@ -182,8 +223,21 @@ export function EleitorModal({ open, onClose, eleitor }: Props) {
                 </button>
               ))}
             </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={novoNicho}
+              onChange={e => setNovoNicho(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNicho() } }}
+              placeholder="Criar novo nicho (ex: Bairro Centro, Comunidade XYZ)..."
+              className="input flex-1 text-xs"
+            />
+            <button type="button" onClick={adicionarNicho} disabled={!novoNicho.trim() || salvarConfig.isPending}
+              className="bg-marco-azul text-white text-xs font-bold px-3 rounded-lg flex items-center gap-1 disabled:opacity-50">
+              <Plus className="w-3 h-3" /> Add
+            </button>
           </div>
-        )}
+        </div>
 
         <Field label="Observações">
           <textarea value={form.obs ?? ''} onChange={e => setForm(f => ({ ...f, obs: e.target.value || null }))} rows={3} className="input" />

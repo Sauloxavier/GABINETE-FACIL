@@ -1,11 +1,12 @@
 // Tipos do schema Supabase (espelha o schema atual do iamob-supabase)
 // Quando criar/alterar tabelas, atualize aqui ou rode `supabase gen types typescript`.
 
-export type Envolvimento = 'Não trabalhado' | 'Em prospecção' | 'Conquistado' | 'Perdido'
+export type Envolvimento = 'Não trabalhado' | 'Em prospecção' | 'Conquistado' | 'Incerto' | 'Perdido'
 export type StatusDemanda = string // dinâmico (statusKanban customizável)
 
 export interface Eleitor {
   id: string
+  codigo: string | null   // MX-001, MX-002 etc (auto-gerado por trigger)
   nome: string
   telefone: string | null
   telefone_res: string | null
@@ -65,7 +66,6 @@ export interface Demanda {
   data: string
   prazo: string | null
   notas: string | null
-  anexos_meta: Array<{ id: string; nome: string; tipo: string; tamanho: number; caminho: string }>
   chat_id: string | null
   ultima_visualizacao: string | null
   criado_em: string

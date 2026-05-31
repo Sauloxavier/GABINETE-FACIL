@@ -3,14 +3,14 @@ import { useMemo, useState } from 'react'
 import { Rocket, Filter, MessageSquare, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { useConfig } from '@/features/config/hooks'
-import { N8nClient } from '@/lib/n8n'
+import { WahaClient } from '@/lib/waha'
 import { iniciais, chatIdDe } from '@/lib/utils'
 
 export const Route = createFileRoute('/_authed/pro/disparo')({
   component: DisparoPage,
 })
 
-type Modo = 'navegador' | 'n8n'
+type Modo = 'navegador' | 'waha'
 
 function DisparoPage() {
   const { data: eleitores } = useEleitores()
@@ -23,12 +23,14 @@ function DisparoPage() {
   const [templateId, setTemplateId] = useState('')
   const [usarCustom, setUsarCustom] = useState(false)
   const [conteudoCustom, setConteudoCustom] = useState('')
-  const [modo, setModo] = useState<Modo>('n8n')
+  const [modo, setModo] = useState<Modo>('waha')
   const [intervaloMin, setIntervaloMin] = useState(8)
   const [intervaloMax, setIntervaloMax] = useState(20)
 
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [progresso, setProgresso] = useState({ enviados: 0, falhas: 0, total: 0 })
+  const [parar, setParar] = useState(false)
 
   const bairros = useMemo(() => {
     if (!eleitores) return []
@@ -51,14 +53,20 @@ function DisparoPage() {
     return config?.mensagens_padrao?.find(t => t.id === templateId)?.conteudo ?? ''
   }, [usarCustom, conteudoCustom, templateId, config])
 
+  function aplicarTemplate(conteudo: string, eleitor: { nome: string; bairro: string | null }) {
+    return conteudo
+      .replace(/\{\{nome\}\}/g, eleitor.nome.split(' ')[0] ?? eleitor.nome)
+      .replace(/\{\{nome_completo\}\}/g, eleitor.nome)
+      .replace(/\{\{primeiro_nome\}\}/g, eleitor.nome.split(' ')[0] ?? '')
+      .replace(/\{\{bairro\}\}/g, eleitor.bairro ?? '')
+      .replace(/\{\{vereador\}\}/g, config?.nome_vereador ?? 'Marco Xavier')
+  }
+
   const previewMsg = useMemo(() => {
     const alvo = destinatarios[0]
     if (!alvo || !conteudoEfetivo) return '(sem destinatário ou template selecionado)'
-    return conteudoEfetivo
-      .replace(/\{\{nome\}\}/g, alvo.nome)
-      .replace(/\{\{primeiro_nome\}\}/g, alvo.nome.split(' ')[0] ?? '')
-      .replace(/\{\{bairro\}\}/g, alvo.bairro ?? '')
-      .replace(/\{\{vereador\}\}/g, config?.nome_vereador ?? 'Marco Xavier')
+    return aplicarTemplate(conteudoEfetivo, alvo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destinatarios, conteudoEfetivo, config])
 
   async function disparar() {
@@ -70,60 +78,67 @@ function DisparoPage() {
       setResultado({ ok: false, msg: 'Nenhum destinatário com esses filtros' })
       return
     }
+    if (modo === 'waha' && !config?.waha_url) {
+      setResultado({ ok: false, msg: 'WAHA não configurado — vá em Configurações' })
+      return
+    }
 
-    const confirmar = confirm(`Disparar para ${destinatarios.length} contato(s) via ${modo}?`)
+    const confirmar = confirm(
+      `Disparar pra ${destinatarios.length} contato(s)?\n\n` +
+      (modo === 'waha'
+        ? `Intervalo: ${intervaloMin}-${intervaloMax}s entre cada envio.`
+        : 'Vai abrir uma aba do WhatsApp Web por contato.')
+    )
     if (!confirmar) return
 
     setEnviando(true)
+    setParar(false)
     setResultado(null)
+    setProgresso({ enviados: 0, falhas: 0, total: destinatarios.length })
 
-    if (modo === 'n8n') {
-      if (!config) { setEnviando(false); return }
-      const client = new N8nClient({
-        n8n_url: config.n8n_url,
-        n8n_api_key: config.n8n_api_key,
-        n8n_auth_header: config.n8n_auth_header,
-        n8n_webhooks: config.n8n_webhooks,
+    if (modo === 'waha') {
+      const waha = new WahaClient({
+        waha_url: config!.waha_url,
+        waha_api_key: config!.waha_api_key,
+        waha_session: config!.waha_session,
       })
-      const contatos = destinatarios.map(e => {
-        const chatId = chatIdDe(e.telefone) ?? ''
-        return {
-          id: e.id,
-          nome: e.nome,
-          telefone: chatId.replace('@c.us', ''),
-          bairro: e.bairro ?? '',
-          chatId,
+      let enviados = 0
+      let falhas = 0
+      for (let i = 0; i < destinatarios.length; i++) {
+        if (parar) break
+        const e = destinatarios[i]
+        const tel = (e.telefone ?? '').replace(/\D/g, '')
+        if (!tel) { falhas++; continue }
+        const msg = aplicarTemplate(conteudoEfetivo, e)
+        try {
+          await waha.enviarTexto(`${tel.startsWith('55') ? tel : '55' + tel}@c.us`, msg)
+          enviados++
+        } catch {
+          falhas++
         }
-      })
-      const r = await client.call('disparo', {
-        mensagem: conteudoEfetivo,
-        contatos,
-        intervaloMin,
-        intervaloMax,
-        wahaUrl: config.waha_url,
-        wahaApiKey: config.waha_api_key,
-        wahaSession: config.waha_session,
-      })
+        setProgresso({ enviados, falhas, total: destinatarios.length })
+        if (i < destinatarios.length - 1) {
+          const espera = (intervaloMin + Math.random() * (intervaloMax - intervaloMin)) * 1000
+          await new Promise(r => setTimeout(r, espera))
+        }
+      }
       setResultado({
-        ok: r.ok,
-        msg: r.ok
-          ? `✓ Lote enviado pro n8n: ${contatos.length} contatos · ${r.ms}ms`
-          : `✗ Falha: ${r.erro ?? 'erro desconhecido'}`
+        ok: falhas === 0,
+        msg: `Disparo concluído: ${enviados} enviado(s), ${falhas} falha(s)`,
       })
     } else {
-      // Modo navegador: abre wa.me em sequência (limitado, melhor pra poucos)
       let i = 0
       for (const e of destinatarios) {
+        if (parar) break
         const num = (chatIdDe(e.telefone) ?? '').replace('@c.us', '')
         if (!num) continue
-        const msg = conteudoEfetivo
-          .replace(/\{\{nome\}\}/g, e.nome)
-          .replace(/\{\{primeiro_nome\}\}/g, e.nome.split(' ')[0] ?? '')
+        const msg = aplicarTemplate(conteudoEfetivo, e)
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank')
         i++
+        setProgresso({ enviados: i, falhas: 0, total: destinatarios.length })
         await new Promise(r => setTimeout(r, 1000))
       }
-      setResultado({ ok: true, msg: `✓ Abertos ${i} chats no WhatsApp Web` })
+      setResultado({ ok: true, msg: `Abertos ${i} chats no WhatsApp Web` })
     }
 
     setEnviando(false)
@@ -151,6 +166,7 @@ function DisparoPage() {
                 <option value="Não trabalhado">Não trabalhado</option>
                 <option value="Em prospecção">Em prospecção</option>
                 <option value="Conquistado">Conquistado</option>
+                <option value="Incerto">Incerto</option>
                 <option value="Perdido">Perdido</option>
               </select>
               <select value={filtroBairro} onChange={e => setFiltroBairro(e.target.value)} className="input">
@@ -224,6 +240,13 @@ function DisparoPage() {
           <div className="bg-white rounded-2xl ring-soft p-5">
             <h3 className="font-bold text-slate-800 mb-3">3. Modo de envio</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className={`border-2 rounded-xl p-3 cursor-pointer flex items-start gap-2 ${modo === 'waha' ? 'border-marco-azul bg-marco-azul/5' : 'border-slate-200'}`}>
+                <input type="radio" value="waha" checked={modo === 'waha'} onChange={() => setModo('waha')} className="mt-1" />
+                <div>
+                  <div className="font-bold text-sm">⚡ Via WhatsApp (WAHA)</div>
+                  <div className="text-xs text-slate-500">Envio automático com intervalo aleatório. Recomendado.</div>
+                </div>
+              </label>
               <label className={`border-2 rounded-xl p-3 cursor-pointer flex items-start gap-2 ${modo === 'navegador' ? 'border-marco-azul bg-marco-azul/5' : 'border-slate-200'}`}>
                 <input type="radio" value="navegador" checked={modo === 'navegador'} onChange={() => setModo('navegador')} className="mt-1" />
                 <div>
@@ -231,16 +254,9 @@ function DisparoPage() {
                   <div className="text-xs text-slate-500">Abre wa.me um por vez. Bom pra revisar.</div>
                 </div>
               </label>
-              <label className={`border-2 rounded-xl p-3 cursor-pointer flex items-start gap-2 ${modo === 'n8n' ? 'border-marco-azul bg-marco-azul/5' : 'border-slate-200'}`}>
-                <input type="radio" value="n8n" checked={modo === 'n8n'} onChange={() => setModo('n8n')} className="mt-1" />
-                <div>
-                  <div className="font-bold text-sm">⚙️ Via n8n</div>
-                  <div className="text-xs text-slate-500">Servidor cuida do ritmo. Funciona com aba fechada.</div>
-                </div>
-              </label>
             </div>
 
-            {modo === 'n8n' && (
+            {modo === 'waha' && (
               <div className="grid grid-cols-2 gap-2 mt-3">
                 <div>
                   <label className="text-xs text-slate-500">Min (segundos)</label>
@@ -255,14 +271,45 @@ function DisparoPage() {
           </div>
 
           {/* Botão */}
-          <button
-            onClick={disparar}
-            disabled={enviando}
-            className="w-full bg-marco-azul hover:bg-marco-azul-esc text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 text-lg"
-          >
-            {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            {enviando ? 'Disparando...' : `🚀 Disparar para ${destinatarios.length}`}
-          </button>
+          {!enviando ? (
+            <button
+              onClick={disparar}
+              className="w-full bg-marco-azul hover:bg-marco-azul-esc text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg"
+            >
+              <Send className="w-5 h-5" />
+              🚀 Disparar para {destinatarios.length}
+            </button>
+          ) : (
+            <button
+              onClick={() => setParar(true)}
+              className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg"
+            >
+              <XCircle className="w-5 h-5" />
+              Parar disparo
+            </button>
+          )}
+
+          {enviando && (
+            <div className="bg-white rounded-2xl ring-soft p-4">
+              <div className="flex items-center gap-2 text-sm font-bold mb-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Enviando...
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-emerald-50 rounded p-2">
+                  <div className="text-xl font-black text-emerald-600">{progresso.enviados}</div>
+                  <div className="text-emerald-700">Enviados</div>
+                </div>
+                <div className="bg-rose-50 rounded p-2">
+                  <div className="text-xl font-black text-rose-600">{progresso.falhas}</div>
+                  <div className="text-rose-700">Falhas</div>
+                </div>
+                <div className="bg-slate-50 rounded p-2">
+                  <div className="text-xl font-black text-slate-600">{progresso.total - progresso.enviados - progresso.falhas}</div>
+                  <div className="text-slate-700">Restam</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {resultado && (
             <div className={`rounded-xl p-4 flex items-start gap-2 ${resultado.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-rose-50 border border-rose-200 text-rose-800'}`}>
