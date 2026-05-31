@@ -104,6 +104,31 @@ export class WahaClient {
     })
   }
 
+  /** Envia imagem (PNG/JPG) com legenda opcional. URL deve ser acessível pelo servidor WAHA. */
+  async enviarImagem(chatId: string, fileUrl: string, caption?: string): Promise<void> {
+    await this.fetch('/api/sendImage', {
+      method: 'POST',
+      body: JSON.stringify({
+        session: this.session,
+        chatId,
+        file: { url: fileUrl },
+        caption,
+      }),
+    })
+  }
+
+  /** Envia áudio (OGG opus preferencialmente). URL acessível pelo servidor WAHA. */
+  async enviarAudio(chatId: string, fileUrl: string): Promise<void> {
+    await this.fetch('/api/sendVoice', {
+      method: 'POST',
+      body: JSON.stringify({
+        session: this.session,
+        chatId,
+        file: { url: fileUrl },
+      }),
+    })
+  }
+
   async fotoPerfil(chatId: string): Promise<string | null> {
     try {
       const data = await this.fetch(`/api/${this.session}/contacts/profile-picture?contactId=${encodeURIComponent(chatId)}`)

@@ -1,0 +1,12 @@
+{
+  "name": "geocodificar-locais",
+  "version": "1.0.0",
+  "description": "Geocodifica locais de votação via Nominatim (OpenStreetMap)",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": { "node": ">=20" }
+}
