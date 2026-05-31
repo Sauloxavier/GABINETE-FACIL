@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Vote, Loader2, Trophy, BarChart3, MapPin, Users, Scale, X, Star, Search, Map as MapIcon } from 'lucide-react'
+import { Vote, Loader2, Trophy, BarChart3, MapPin, Users, Scale, X, Star, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useConfig } from '@/features/config/hooks'
-import { MapaLocais } from '@/features/raiox/MapaLocais'
 
 export const Route = createFileRoute('/_authed/raio-x-votos')({
   component: RaioXPage,
@@ -23,7 +22,7 @@ interface DetalheRow {
   votos: number
 }
 
-type Foco = 'candidatos' | 'comparativo' | 'mapa' | 'locais' | 'zonas' | 'secoes'
+type Foco = 'candidatos' | 'comparativo' | 'locais' | 'zonas' | 'secoes'
 
 function RaioXPage() {
   const { data: config } = useConfig()
@@ -346,7 +345,6 @@ function RaioXPage() {
           <div className="flex gap-1 mb-4 bg-white rounded-xl p-1 ring-soft overflow-x-auto">
             <TabButton ativa={foco === 'candidatos'} onClick={() => trocarAba('candidatos')} icon={Trophy} label="Ranking" />
             <TabButton ativa={foco === 'comparativo'} onClick={() => trocarAba('comparativo')} icon={Scale} label={`Comparar (${selecionados.length})`} />
-            <TabButton ativa={foco === 'mapa'} onClick={() => trocarAba('mapa')} icon={MapIcon} label="Mapa" />
             <TabButton ativa={foco === 'zonas'} onClick={() => trocarAba('zonas')} icon={BarChart3} label="Zonas" />
             <TabButton ativa={foco === 'locais'} onClick={() => trocarAba('locais')} icon={MapPin} label="Locais" />
             <TabButton ativa={foco === 'secoes'} onClick={() => trocarAba('secoes')} icon={BarChart3} label="Seções" />
@@ -379,7 +377,6 @@ function RaioXPage() {
               <ComparativoView candidatos={candidatosComparados} historico={historico} />
             )
           )}
-          {foco === 'mapa' && ano && cargo && <MapaLocais ano={ano} cargo={cargo} />}
           {foco === 'zonas' && (
             carregandoZona ? (
               <div className="text-center py-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
