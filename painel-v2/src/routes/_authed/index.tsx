@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map, Vote } from 'lucide-react'
+import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map, Vote, MapPin } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/store/auth'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { useDemandas } from '@/features/demandas/hooks'
+import { useEleitoradoAtual } from '@/features/tre-sp/hooks'
 
 export const Route = createFileRoute('/_authed/')({
   component: InicioPage,
@@ -57,7 +58,23 @@ function InicioPage() {
   const { data: counters, isLoading } = useCounters()
   const { data: eleitores } = useEleitores()
   const { data: demandas } = useDemandas()
+  const { data: eleitoradoAtualSP } = useEleitoradoAtual()
   const [periodo, setPeriodo] = useState<string>('30')
+
+  // Eleitorado de SP — somar Capital + Interior do ano vigente
+  const eleitoradoSP = useMemo(() => {
+    if (!eleitoradoAtualSP) return null
+    const ano = Math.max(...eleitoradoAtualSP.map(e => e.ano), 0)
+    const linhas = eleitoradoAtualSP.filter(e => e.ano === ano)
+    if (linhas.length === 0) return null
+    return {
+      ano,
+      aptos: linhas.reduce((s, e) => s + e.aptos, 0),
+      locais: linhas.reduce((s, e) => s + e.locaisVotacao, 0),
+      secoes: linhas.reduce((s, e) => s + e.secoes, 0),
+      zonas: linhas.reduce((s, e) => s + e.zonas, 0),
+    }
+  }, [eleitoradoAtualSP])
 
   const primeiroNome = (perfil?.nome ?? 'MARCO').split(' ')[0].toUpperCase()
 
@@ -153,6 +170,26 @@ function InicioPage() {
         <CounterCard label="Em aberto" valor={counters?.abertas} loading={isLoading} cor="amber" />
         <CounterCard label="Resolvidos (30d)" valor={counters?.resolvidasMes} loading={isLoading} cor="rose" />
       </div>
+
+      {/* Widget: eleitorado SP (dados ao vivo do TRE-SP) */}
+      {eleitoradoSP && (
+        <div className="bg-white rounded-2xl ring-soft p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <MapPin className="w-5 h-5 text-marco-azul" />
+            <h3 className="font-bold text-slate-800">Eleitorado de São Paulo · {eleitoradoSP.ano}</h3>
+            <span className="text-[10px] text-slate-400 font-mono">fonte: TRE-SP</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <MiniMetric label="Eleitores aptos" valor={eleitoradoSP.aptos} cor="text-emerald-600" />
+            <MiniMetric label="Locais de votação" valor={eleitoradoSP.locais} cor="text-sky-600" />
+            <MiniMetric label="Seções eleitorais" valor={eleitoradoSP.secoes} cor="text-purple-600" />
+            <MiniMetric label="Zonas eleitorais" valor={eleitoradoSP.zonas} cor="text-amber-600" />
+          </div>
+          <div className="text-[11px] text-slate-500 mt-3">
+            💡 Limeira é <strong>zona eleitoral 066</strong>. Use no /raio-x-votos pra filtrar.
+          </div>
+        </div>
+      )}
 
       {/* Destaque: Raio-X Votos */}
       <Link
@@ -262,6 +299,17 @@ function AtalhoCard({
         <div className="text-xs text-slate-500 group-hover:text-white/80 mt-0.5">{desc}</div>
       </div>
     </Link>
+  )
+}
+
+function MiniMetric({ label, valor, cor }: { label: string; valor: number; cor: string }) {
+  return (
+    <div className="bg-slate-50 rounded-xl p-3">
+      <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{label}</div>
+      <div className={`text-2xl font-black ${cor} mt-0.5`}>
+        {valor.toLocaleString('pt-BR')}
+      </div>
+    </div>
   )
 }
 
