@@ -23,7 +23,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Menu className="w-6 h-6" />
       </button>
 
-      <div className="flex-1 max-w-lg flex items-center bg-slate-100 rounded-xl min-w-0">
+      <div className="flex-1 flex items-center bg-slate-100 rounded-xl min-w-0">
         <input
           placeholder="Pesquisar eleitor, atendimento, número..."
           className="flex-1 min-w-0 bg-transparent px-4 py-2 text-sm focus:outline-none"
