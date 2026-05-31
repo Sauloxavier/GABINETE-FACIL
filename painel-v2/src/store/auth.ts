@@ -13,6 +13,7 @@ export interface AuthState {
   signOut: () => Promise<void>
   refreshPerfil: () => Promise<void>
   isAdmin: () => boolean
+  isRoot: () => boolean
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
@@ -25,6 +26,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     const { data } = await supabase.auth.getSession()
     set({ session: data.session, user: data.session?.user ?? null })
     await get().refreshPerfil()
+
+    // Se já está logado e o perfil aparece pausado, força logout
+    const perfilAtual = get().perfil
+    if (perfilAtual?.pausado) {
+      await supabase.auth.signOut()
+      set({ session: null, user: null, perfil: null })
+    }
     set({ loading: false })
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -34,8 +42,25 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   async signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
+
+    // Após login, verifica se o perfil está pausado
+    const userId = data.user?.id
+    if (userId) {
+      const { data: perfil } = await supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+      if (perfil && (perfil as any).pausado) {
+        await supabase.auth.signOut()
+        const msg = (perfil as any).aviso
+          ? `Acesso pausado: ${(perfil as any).aviso}`
+          : 'Sua conta está pausada. Contate o administrador.'
+        return { error: msg }
+      }
+    }
     return { error: null }
   },
 
@@ -46,8 +71,6 @@ export const useAuth = create<AuthState>((set, get) => ({
       console.warn('[signOut]', err)
     }
     set({ session: null, user: null, perfil: null })
-    // Limpa caches sensíveis e força ir pra /login
-    // (TanStack Router não rerun beforeLoad automaticamente após mudança de auth)
     try {
       localStorage.removeItem('mx_supabase_auth')
       localStorage.removeItem('mazyos-rq-cache')
@@ -60,7 +83,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   async refreshPerfil() {
     const userId = get().user?.id
     if (!userId) { set({ perfil: null }); return }
-    // Compat v1: perfis.id é o próprio user_id
     const { data, error } = await supabase
       .from('perfis')
       .select('*')
@@ -75,6 +97,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   isAdmin() {
-    return get().perfil?.papel === 'admin'
+    const p = get().perfil
+    return !!p && (p.papel === 'admin' || p.papel === 'root')
+  },
+
+  isRoot() {
+    return get().perfil?.papel === 'root'
   },
 }))

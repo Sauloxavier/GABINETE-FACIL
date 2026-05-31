@@ -93,8 +93,11 @@ export interface Perfil {
   id: string
   nome: string | null
   email: string | null
-  papel: 'admin' | 'assessor'
+  papel: 'root' | 'admin' | 'assessor'
   avatar_url: string | null
+  pausado: boolean | null
+  pausado_em: string | null
+  aviso: string | null
   criado_em: string
 }
 

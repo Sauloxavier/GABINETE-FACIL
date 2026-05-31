@@ -57,14 +57,13 @@ function LoginPage() {
         @keyframes orbita-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
       `}</style>
 
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl ring-1 ring-slate-200 overflow-hidden grid lg:grid-cols-2 min-h-[640px]">
+      <div className="w-full max-w-6xl rounded-3xl shadow-2xl ring-1 ring-slate-200 overflow-hidden grid lg:grid-cols-2 min-h-[640px]">
         {/* ─── COLUNA ESQUERDA — FORM ─────────────────────────── */}
-        <div className="p-8 sm:p-12 flex flex-col">
-          <div className="flex items-center gap-2">
-            <img src="/governato-horizontal.png" alt="governato" className="h-9 w-auto" />
-          </div>
-
-          <div className="flex-1 flex items-center justify-center">
+        <div className="relative p-8 sm:p-12 flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/60 overflow-hidden">
+          {/* mancha decorativa de fundo */}
+          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-marco-azul/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-16 w-80 h-80 rounded-full bg-sky-200/30 blur-3xl" />
+          <div className="relative z-10 flex-1 flex items-center justify-center">
             <div className="w-full max-w-sm">
               <div className="text-center mb-8">
                 <div className="relative inline-flex">
@@ -73,9 +72,11 @@ function LoginPage() {
                       <div key={i} className="aspect-square border border-slate-200 rounded-sm" />
                     ))}
                   </div>
-                  <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-marco-azul to-marco-azul-esc shadow-lg flex items-center justify-center">
-                    <img src="/governato-icon.png" alt="" className="w-10 h-10 object-contain" />
-                  </div>
+                  <img
+                    src="/governato-horizontal.png"
+                    alt="governato"
+                    className="relative h-14 sm:h-16 w-auto"
+                  />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-5">
                   Entre na sua conta
@@ -158,7 +159,7 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="text-center text-[11px] text-slate-400 tracking-widest uppercase mt-6">
+          <div className="relative z-10 text-center text-[11px] text-slate-400 tracking-widest uppercase mt-6">
             powered by <span className="font-black text-marco-azul">GOVERNATO</span>
           </div>
         </div>
@@ -181,7 +182,7 @@ function LoginPage() {
               Governe <span className="text-sky-200">com inteligência</span>
             </h2>
             <p className="text-sm text-white/80 mt-2 max-w-sm">
-              A plataforma completa de gestão de mandato — eleitores, atendimentos, WhatsApp e IA em um só lugar.
+              A plataforma completa de gestão de mandato. Eleitores, atendimentos, WhatsApp e IA em um só lugar.
             </p>
 
             {/* Sistema solar */}
@@ -259,16 +260,10 @@ function LoginPage() {
               </div>
             </div>
 
-            <div>
-              <p className="text-sm text-white/85 max-w-md">
-                Compatível com <em>WhatsApp Business, OpenAI, TSE</em> e os principais
-                canais de comunicação com o eleitor.
-              </p>
-              <div className="flex gap-2 mt-4">
-                <span className="w-8 h-1 rounded-full bg-white" />
-                <span className="w-2 h-1 rounded-full bg-white/50" />
-                <span className="w-2 h-1 rounded-full bg-white/50" />
-              </div>
+            <div className="flex gap-2">
+              <span className="w-8 h-1 rounded-full bg-white" />
+              <span className="w-2 h-1 rounded-full bg-white/50" />
+              <span className="w-2 h-1 rounded-full bg-white/50" />
             </div>
           </div>
         </div>
