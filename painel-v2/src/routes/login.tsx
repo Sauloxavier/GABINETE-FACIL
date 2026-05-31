@@ -51,18 +51,31 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-blue-50 p-4 sm:p-6 lg:p-10 flex items-center justify-center">
+    <div className="relative min-h-screen p-4 sm:p-6 lg:p-10 flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-100 via-rose-50 to-sky-100">
       <style>{`
         @keyframes orbita-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes orbita-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
       `}</style>
 
-      <div className="w-full max-w-6xl rounded-3xl shadow-2xl ring-1 ring-slate-200 overflow-hidden grid lg:grid-cols-2 min-h-[640px]">
+      {/* Textura/grid no fundo geral */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.18]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(30,64,175,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(30,64,175,0.18) 1px, transparent 1px)",
+          backgroundSize: '36px 36px',
+          maskImage: 'radial-gradient(ellipse at center, black 35%, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 35%, transparent 75%)',
+        }}
+      />
+      {/* Blobs decorativos no fundo geral */}
+      <div className="pointer-events-none absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full bg-marco-azul/25 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 w-[520px] h-[520px] rounded-full bg-rose-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 w-[380px] h-[380px] rounded-full bg-sky-300/30 blur-3xl" />
+
+      <div className="relative w-full max-w-6xl rounded-3xl shadow-2xl ring-1 ring-slate-200 overflow-hidden grid lg:grid-cols-2 min-h-[640px]">
         {/* ─── COLUNA ESQUERDA — FORM ─────────────────────────── */}
-        <div className="relative p-8 sm:p-12 flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/60 overflow-hidden">
-          {/* mancha decorativa de fundo */}
-          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-marco-azul/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-16 w-80 h-80 rounded-full bg-sky-200/30 blur-3xl" />
+        <div className="relative p-8 sm:p-12 flex flex-col bg-white">
           <div className="relative z-10 flex-1 flex items-center justify-center">
             <div className="w-full max-w-sm">
               <div className="text-center mb-8">
@@ -75,7 +88,7 @@ function LoginPage() {
                   <img
                     src="/governato-horizontal.png"
                     alt="governato"
-                    className="relative h-14 sm:h-16 w-auto"
+                    className="relative h-24 sm:h-28 lg:h-32 w-auto"
                   />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-5">
