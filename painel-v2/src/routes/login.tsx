@@ -51,7 +51,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen p-4 sm:p-6 lg:p-10 flex items-center justify-center overflow-hidden bg-gradient-to-br from-marco-azul via-marco-azul to-marco-azul-esc">
+    <div className="relative min-h-screen p-4 sm:p-6 lg:p-10 flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-100 to-slate-200">
       <style>{`
         @keyframes orbita-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes orbita-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
@@ -59,19 +59,19 @@ function LoginPage() {
 
       {/* Textura/grid no fundo geral */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        className="pointer-events-none absolute inset-0 opacity-[0.18]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            "linear-gradient(rgba(30,64,175,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(30,64,175,0.15) 1px, transparent 1px)",
           backgroundSize: '36px 36px',
           maskImage: 'radial-gradient(ellipse at center, black 35%, transparent 75%)',
           WebkitMaskImage: 'radial-gradient(ellipse at center, black 35%, transparent 75%)',
         }}
       />
-      {/* Blobs decorativos no fundo geral */}
-      <div className="pointer-events-none absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full bg-sky-300/30 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 w-[520px] h-[520px] rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 left-1/2 w-[380px] h-[380px] rounded-full bg-marco-azul-esc/50 blur-3xl" />
+      {/* Blobs decorativos sutis no fundo branco */}
+      <div className="pointer-events-none absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full bg-marco-azul/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 w-[520px] h-[520px] rounded-full bg-sky-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 w-[380px] h-[380px] rounded-full bg-slate-200/60 blur-3xl" />
 
       <div className="relative w-full max-w-6xl rounded-3xl shadow-2xl ring-1 ring-slate-200 overflow-hidden grid lg:grid-cols-2 min-h-[640px]">
         {/* ─── COLUNA ESQUERDA — FORM ─────────────────────────── */}
