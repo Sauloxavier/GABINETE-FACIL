@@ -62,30 +62,68 @@ function AbaGeral() {
   const salvar = useSalvarConfig()
   const [nomeVereador, setNomeVereador] = useState(config?.nome_vereador ?? '')
   const [proxEleicao, setProxEleicao] = useState(config?.proxima_eleicao ?? '')
+  const [candNum, setCandNum] = useState(config?.candidato_fixado_numero ?? '')
+  const [candNome, setCandNome] = useState(config?.candidato_fixado_nome ?? '')
 
   return (
-    <Card titulo="Identidade do gabinete">
-      <Field label="Nome do vereador">
-        <input
-          value={nomeVereador}
-          onChange={e => setNomeVereador(e.target.value)}
-          className="input"
+    <div className="space-y-4">
+      <Card titulo="Identidade do gabinete">
+        <Field label="Nome do vereador">
+          <input
+            value={nomeVereador}
+            onChange={e => setNomeVereador(e.target.value)}
+            className="input"
+          />
+        </Field>
+        <Field label="Próxima eleição">
+          <input
+            type="date"
+            value={proxEleicao}
+            onChange={e => setProxEleicao(e.target.value)}
+            className="input"
+          />
+        </Field>
+        <BotaoSalvar
+          onClick={() => salvar.mutate({ nome_vereador: nomeVereador, proxima_eleicao: proxEleicao })}
+          salvando={salvar.isPending}
+          sucesso={salvar.isSuccess}
         />
-      </Field>
-      <Field label="Próxima eleição">
-        <input
-          type="date"
-          value={proxEleicao}
-          onChange={e => setProxEleicao(e.target.value)}
-          className="input"
+      </Card>
+
+      <Card titulo="Candidato fixado no Raio-X" desc="Define o candidato 'dono' do painel. Ele será mostrado em destaque no dashboard (votação ao longo dos anos) e selecionado automaticamente no comparativo do Raio-X Votos.">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Número eleitoral">
+            <input
+              value={candNum}
+              onChange={e => setCandNum(e.target.value.replace(/\D/g, ''))}
+              placeholder="11200"
+              className="input font-mono"
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Nome (opcional)">
+              <input
+                value={candNome}
+                onChange={e => setCandNome(e.target.value)}
+                placeholder="MARCO XAVIER"
+                className="input"
+              />
+            </Field>
+          </div>
+        </div>
+        <div className="bg-blue-50 border border-blue-100 text-blue-900 text-xs rounded-lg p-3 mt-3">
+          💡 Quando você abrir o Raio-X Votos, esse candidato vai estar <strong>pré-selecionado</strong> pra comparação. E no dashboard aparece um gráfico com a evolução de votos dele ao longo dos anos importados.
+        </div>
+        <BotaoSalvar
+          onClick={() => salvar.mutate({
+            candidato_fixado_numero: candNum,
+            candidato_fixado_nome: candNome,
+          })}
+          salvando={salvar.isPending}
+          sucesso={salvar.isSuccess}
         />
-      </Field>
-      <BotaoSalvar
-        onClick={() => salvar.mutate({ nome_vereador: nomeVereador, proxima_eleicao: proxEleicao })}
-        salvando={salvar.isPending}
-        sucesso={salvar.isSuccess}
-      />
-    </Card>
+      </Card>
+    </div>
   )
 }
 

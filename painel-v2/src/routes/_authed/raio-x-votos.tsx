@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState, useMemo } from 'react'
-import { Vote, Loader2, Trophy, BarChart3, MapPin, Users, Scale, X } from 'lucide-react'
+import { Vote, Loader2, Trophy, BarChart3, MapPin, Users, Scale, X, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useConfig } from '@/features/config/hooks'
 
 export const Route = createFileRoute('/_authed/raio-x-votos')({
   component: RaioXPage,
@@ -37,6 +38,9 @@ interface ResumoCandidato {
 type Foco = 'candidatos' | 'comparativo' | 'locais' | 'zonas' | 'secoes'
 
 function RaioXPage() {
+  const { data: config } = useConfig()
+  const candFixado = config?.candidato_fixado_numero?.trim() ?? ''
+
   const [carregando, setCarregando] = useState(true)
   const [erroSchema, setErroSchema] = useState(false)
   const [linhas, setLinhas] = useState<VotoRow[]>([])
@@ -77,17 +81,25 @@ function RaioXPage() {
   useEffect(() => {
     if (!ano || !cargo) return
     setCarregando(true)
-    setSelecionados([])
     ;(supabase.from('votos_tse') as any)
       .select('*')
       .eq('ano', ano)
       .eq('cargo', cargo)
       .limit(50000)
       .then(({ data, error }: { data: VotoRow[] | null; error: { message?: string } | null }) => {
-        if (!error) setLinhas(data ?? [])
+        if (!error) {
+          const rows = data ?? []
+          setLinhas(rows)
+          // Auto-seleciona o candidato fixado se ele aparecer nesses dados
+          if (candFixado && rows.some(r => r.numero_candidato === candFixado)) {
+            setSelecionados([candFixado])
+          } else {
+            setSelecionados([])
+          }
+        }
         setCarregando(false)
       })
-  }, [ano, cargo])
+  }, [ano, cargo, candFixado])
 
   // Ranking + breakdown por local/zona
   const ranking = useMemo<ResumoCandidato[]>(() => {
@@ -265,7 +277,7 @@ node index.js --ano 2024 --cargo VEREADOR`}
           {carregando ? (
             <div className="text-center py-12 text-slate-400"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div>
           ) : foco === 'candidatos' ? (
-            <RankingTable lista={rankingFiltrado} selecionados={selecionados} onToggle={toggleSelecionado} />
+            <RankingTable lista={rankingFiltrado} selecionados={selecionados} onToggle={toggleSelecionado} candFixado={candFixado} />
           ) : foco === 'comparativo' ? (
             <ComparativoView candidatos={candidatosComparados} />
           ) : foco === 'zonas' ? (
@@ -308,10 +320,11 @@ function TabButton({ ativa, onClick, icon: Icon, label }: { ativa: boolean; onCl
   )
 }
 
-function RankingTable({ lista, selecionados, onToggle }: {
+function RankingTable({ lista, selecionados, onToggle, candFixado }: {
   lista: ResumoCandidato[]
   selecionados: string[]
   onToggle: (numero: string) => void
+  candFixado: string
 }) {
   return (
     <div className="bg-white rounded-2xl ring-soft overflow-hidden">
@@ -331,8 +344,9 @@ function RankingTable({ lista, selecionados, onToggle }: {
           <tbody className="divide-y divide-slate-100">
             {lista.slice(0, 200).map((c, i) => {
               const sel = selecionados.includes(c.numero)
+              const fixado = candFixado && c.numero === candFixado
               return (
-                <tr key={c.numero} className={sel ? 'bg-marco-azul/5' : i < 9 ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-slate-50'}>
+                <tr key={c.numero} className={fixado ? 'bg-marco-amarelo/20 hover:bg-marco-amarelo/30' : sel ? 'bg-marco-azul/5' : i < 9 ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-slate-50'}>
                   <td className="px-3 py-3">
                     <input
                       type="checkbox"
@@ -344,7 +358,10 @@ function RankingTable({ lista, selecionados, onToggle }: {
                     />
                   </td>
                   <td className="px-2 py-3 font-black text-slate-400">{i + 1}</td>
-                  <td className="px-3 py-3 font-semibold text-slate-800">{c.nome}</td>
+                  <td className="px-3 py-3 font-semibold text-slate-800 flex items-center gap-1">
+                    {fixado && <Star className="w-3 h-3 text-marco-amarelo fill-marco-amarelo" />}
+                    {c.nome}
+                  </td>
                   <td className="px-3 py-3 font-mono text-slate-600">{c.numero}</td>
                   <td className="px-3 py-3 text-slate-600">{c.partido ?? '—'}</td>
                   <td className="px-3 py-3 text-right font-bold text-marco-azul">{c.total.toLocaleString('pt-BR')}</td>

@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map, Vote, MapPin } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map, Vote, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/store/auth'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { useDemandas } from '@/features/demandas/hooks'
 import { useEleitoradoAtual } from '@/features/tre-sp/hooks'
+import { useConfig } from '@/features/config/hooks'
 
 export const Route = createFileRoute('/_authed/')({
   component: InicioPage,
@@ -59,7 +60,28 @@ function InicioPage() {
   const { data: eleitores } = useEleitores()
   const { data: demandas } = useDemandas()
   const { data: eleitoradoAtualSP } = useEleitoradoAtual()
+  const { data: config } = useConfig()
+  const candFixadoNum = config?.candidato_fixado_numero?.trim() ?? ''
+  const candFixadoNome = config?.candidato_fixado_nome?.trim() ?? ''
   const [periodo, setPeriodo] = useState<string>('30')
+  const [historicoCand, setHistoricoCand] = useState<Array<{ ano: number; cargo: string; votos: number; nome: string }>>([])
+
+  useEffect(() => {
+    if (!candFixadoNum) { setHistoricoCand([]); return }
+    ;(supabase.from('votos_tse') as any)
+      .select('ano, cargo, votos, nome_candidato')
+      .eq('numero_candidato', candFixadoNum)
+      .limit(50000)
+      .then(({ data }: { data: Array<{ ano: number; cargo: string; votos: number; nome_candidato: string }> | null }) => {
+        const agreg: Record<string, { ano: number; cargo: string; votos: number; nome: string }> = {}
+        for (const r of data ?? []) {
+          const k = `${r.ano}-${r.cargo}`
+          if (!agreg[k]) agreg[k] = { ano: r.ano, cargo: r.cargo, votos: 0, nome: r.nome_candidato }
+          agreg[k].votos += r.votos
+        }
+        setHistoricoCand(Object.values(agreg).sort((a, b) => b.ano - a.ano))
+      })
+  }, [candFixadoNum])
 
   // Eleitorado de SP — somar Capital + Interior do ano vigente
   const eleitoradoSP = useMemo(() => {
@@ -214,6 +236,50 @@ function InicioPage() {
           </div>
         </div>
       </Link>
+
+      {/* Widget: votação histórica do candidato fixado */}
+      {candFixadoNum && historicoCand.length > 0 && (
+        <div className="bg-white rounded-2xl ring-soft p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Star className="w-5 h-5 text-marco-amarelo fill-marco-amarelo" />
+            <h3 className="font-bold text-slate-800">
+              Sua votação · {candFixadoNome || historicoCand[0]?.nome} ({candFixadoNum})
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="flex items-end gap-2 sm:gap-4 min-w-min h-32 sm:h-40 pb-2">
+              {(() => {
+                const max = Math.max(...historicoCand.map(h => h.votos), 1)
+                return historicoCand.map(h => (
+                  <div key={`${h.ano}-${h.cargo}`} className="flex-1 min-w-[60px] sm:min-w-[80px] flex flex-col items-center gap-1">
+                    <div className="text-xs font-black text-slate-700">{h.votos.toLocaleString('pt-BR')}</div>
+                    <div
+                      className="w-full bg-gradient-to-t from-marco-azul to-marco-azul-esc rounded-t transition-all hover:from-marco-azul-esc"
+                      style={{ height: `${(h.votos / max) * 100}%`, minHeight: 6 }}
+                      title={`${h.cargo} ${h.ano}: ${h.votos.toLocaleString('pt-BR')} votos`}
+                    />
+                    <div className="text-[10px] text-slate-500 font-semibold">{h.ano}</div>
+                    <div className="text-[9px] text-slate-400 truncate w-full text-center" title={h.cargo}>{h.cargo.split(' ')[0]}</div>
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+          <Link to="/raio-x-votos" className="text-xs text-marco-azul font-bold hover:underline mt-3 inline-block">
+            Ver análise completa no Raio-X →
+          </Link>
+        </div>
+      )}
+
+      {candFixadoNum && historicoCand.length === 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 text-sm text-slate-600 flex items-center gap-2">
+          <Star className="w-4 h-4 text-slate-400" />
+          <div>
+            Candidato <strong>{candFixadoNum}</strong> configurado, mas sem dados no banco.
+            Importe os votos via <code>scripts/votos-limeira/</code>.
+          </div>
+        </div>
+      )}
 
       {/* Atalhos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

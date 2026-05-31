@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 export interface AppConfig {
   nome_vereador: string
   proxima_eleicao: string
+  candidato_fixado_numero: string  // número eleitoral do dono do painel (Marco = 11200)
+  candidato_fixado_nome: string    // nome (opcional, pra display)
   // WAHA
   waha_url: string
   waha_api_key: string
@@ -25,6 +27,8 @@ export interface AppConfig {
 const defaults: AppConfig = {
   nome_vereador: 'Marco Xavier',
   proxima_eleicao: '2028-10-01',
+  candidato_fixado_numero: '',
+  candidato_fixado_nome: '',
   waha_url: '',
   waha_api_key: '',
   waha_session: 'default',
