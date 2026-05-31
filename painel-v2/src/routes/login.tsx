@@ -194,8 +194,8 @@ function LoginPage() {
             <h2 className="text-3xl sm:text-4xl font-black leading-tight">
               Governe <span className="text-sky-200">com inteligência</span>
             </h2>
-            <p className="text-sm text-white/80 mt-2 max-w-sm">
-              A plataforma completa de gestão de mandato. Eleitores, atendimentos, WhatsApp e IA em um só lugar.
+            <p className="text-base sm:text-lg font-semibold text-white/90 mt-1 tracking-wide">
+              Gabinete inteligente
             </p>
 
             {/* Sistema solar */}
