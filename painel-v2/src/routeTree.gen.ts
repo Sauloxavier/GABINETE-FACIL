@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedWhatsappRouteImport } from './routes/_authed/whatsapp'
 import { Route as AuthedUsuariosRouteImport } from './routes/_authed/usuarios'
+import { Route as AuthedRankingRouteImport } from './routes/_authed/ranking'
 import { Route as AuthedPainelGeralRouteImport } from './routes/_authed/painel-geral'
 import { Route as AuthedNotificacoesRouteImport } from './routes/_authed/notificacoes'
 import { Route as AuthedInboxRouteImport } from './routes/_authed/inbox'
@@ -25,6 +27,7 @@ import { Route as AuthedAgendaRouteImport } from './routes/_authed/agenda'
 import { Route as AuthedEleitoresIndexRouteImport } from './routes/_authed/eleitores/index'
 import { Route as AuthedAtendimentosIndexRouteImport } from './routes/_authed/atendimentos/index'
 import { Route as AuthedProTrafegoRouteImport } from './routes/_authed/pro.trafego'
+import { Route as AuthedProPostsRouteImport } from './routes/_authed/pro.posts'
 import { Route as AuthedProIaRouteImport } from './routes/_authed/pro.ia'
 import { Route as AuthedProDisparoRouteImport } from './routes/_authed/pro.disparo'
 import { Route as AuthedProAutomacoesRouteImport } from './routes/_authed/pro.automacoes'
@@ -46,9 +49,19 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedWhatsappRoute = AuthedWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedUsuariosRoute = AuthedUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedRankingRoute = AuthedRankingRouteImport.update({
+  id: '/ranking',
+  path: '/ranking',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedPainelGeralRoute = AuthedPainelGeralRouteImport.update({
@@ -111,6 +124,11 @@ const AuthedProTrafegoRoute = AuthedProTrafegoRouteImport.update({
   path: '/pro/trafego',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedProPostsRoute = AuthedProPostsRouteImport.update({
+  id: '/pro/posts',
+  path: '/pro/posts',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedProIaRoute = AuthedProIaRouteImport.update({
   id: '/pro/ia',
   path: '/pro/ia',
@@ -156,13 +174,16 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthedInboxRoute
   '/notificacoes': typeof AuthedNotificacoesRoute
   '/painel-geral': typeof AuthedPainelGeralRoute
+  '/ranking': typeof AuthedRankingRoute
   '/usuarios': typeof AuthedUsuariosRoute
+  '/whatsapp': typeof AuthedWhatsappRoute
   '/parlamentar/emendas': typeof AuthedParlamentarEmendasRoute
   '/parlamentar/proposituras': typeof AuthedParlamentarPropositurasRoute
   '/pro/analise': typeof AuthedProAnaliseRoute
   '/pro/automacoes': typeof AuthedProAutomacoesRoute
   '/pro/disparo': typeof AuthedProDisparoRoute
   '/pro/ia': typeof AuthedProIaRoute
+  '/pro/posts': typeof AuthedProPostsRoute
   '/pro/trafego': typeof AuthedProTrafegoRoute
   '/atendimentos/': typeof AuthedAtendimentosIndexRoute
   '/eleitores/': typeof AuthedEleitoresIndexRoute
@@ -178,7 +199,9 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthedInboxRoute
   '/notificacoes': typeof AuthedNotificacoesRoute
   '/painel-geral': typeof AuthedPainelGeralRoute
+  '/ranking': typeof AuthedRankingRoute
   '/usuarios': typeof AuthedUsuariosRoute
+  '/whatsapp': typeof AuthedWhatsappRoute
   '/': typeof AuthedIndexRoute
   '/parlamentar/emendas': typeof AuthedParlamentarEmendasRoute
   '/parlamentar/proposituras': typeof AuthedParlamentarPropositurasRoute
@@ -186,6 +209,7 @@ export interface FileRoutesByTo {
   '/pro/automacoes': typeof AuthedProAutomacoesRoute
   '/pro/disparo': typeof AuthedProDisparoRoute
   '/pro/ia': typeof AuthedProIaRoute
+  '/pro/posts': typeof AuthedProPostsRoute
   '/pro/trafego': typeof AuthedProTrafegoRoute
   '/atendimentos': typeof AuthedAtendimentosIndexRoute
   '/eleitores': typeof AuthedEleitoresIndexRoute
@@ -203,7 +227,9 @@ export interface FileRoutesById {
   '/_authed/inbox': typeof AuthedInboxRoute
   '/_authed/notificacoes': typeof AuthedNotificacoesRoute
   '/_authed/painel-geral': typeof AuthedPainelGeralRoute
+  '/_authed/ranking': typeof AuthedRankingRoute
   '/_authed/usuarios': typeof AuthedUsuariosRoute
+  '/_authed/whatsapp': typeof AuthedWhatsappRoute
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/parlamentar/emendas': typeof AuthedParlamentarEmendasRoute
   '/_authed/parlamentar/proposituras': typeof AuthedParlamentarPropositurasRoute
@@ -211,6 +237,7 @@ export interface FileRoutesById {
   '/_authed/pro/automacoes': typeof AuthedProAutomacoesRoute
   '/_authed/pro/disparo': typeof AuthedProDisparoRoute
   '/_authed/pro/ia': typeof AuthedProIaRoute
+  '/_authed/pro/posts': typeof AuthedProPostsRoute
   '/_authed/pro/trafego': typeof AuthedProTrafegoRoute
   '/_authed/atendimentos/': typeof AuthedAtendimentosIndexRoute
   '/_authed/eleitores/': typeof AuthedEleitoresIndexRoute
@@ -229,13 +256,16 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/notificacoes'
     | '/painel-geral'
+    | '/ranking'
     | '/usuarios'
+    | '/whatsapp'
     | '/parlamentar/emendas'
     | '/parlamentar/proposituras'
     | '/pro/analise'
     | '/pro/automacoes'
     | '/pro/disparo'
     | '/pro/ia'
+    | '/pro/posts'
     | '/pro/trafego'
     | '/atendimentos/'
     | '/eleitores/'
@@ -251,7 +281,9 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/notificacoes'
     | '/painel-geral'
+    | '/ranking'
     | '/usuarios'
+    | '/whatsapp'
     | '/'
     | '/parlamentar/emendas'
     | '/parlamentar/proposituras'
@@ -259,6 +291,7 @@ export interface FileRouteTypes {
     | '/pro/automacoes'
     | '/pro/disparo'
     | '/pro/ia'
+    | '/pro/posts'
     | '/pro/trafego'
     | '/atendimentos'
     | '/eleitores'
@@ -275,7 +308,9 @@ export interface FileRouteTypes {
     | '/_authed/inbox'
     | '/_authed/notificacoes'
     | '/_authed/painel-geral'
+    | '/_authed/ranking'
     | '/_authed/usuarios'
+    | '/_authed/whatsapp'
     | '/_authed/'
     | '/_authed/parlamentar/emendas'
     | '/_authed/parlamentar/proposituras'
@@ -283,6 +318,7 @@ export interface FileRouteTypes {
     | '/_authed/pro/automacoes'
     | '/_authed/pro/disparo'
     | '/_authed/pro/ia'
+    | '/_authed/pro/posts'
     | '/_authed/pro/trafego'
     | '/_authed/atendimentos/'
     | '/_authed/eleitores/'
@@ -316,11 +352,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/whatsapp': {
+      id: '/_authed/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AuthedWhatsappRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/usuarios': {
       id: '/_authed/usuarios'
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof AuthedUsuariosRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/ranking': {
+      id: '/_authed/ranking'
+      path: '/ranking'
+      fullPath: '/ranking'
+      preLoaderRoute: typeof AuthedRankingRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/painel-geral': {
@@ -407,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedProTrafegoRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/pro/posts': {
+      id: '/_authed/pro/posts'
+      path: '/pro/posts'
+      fullPath: '/pro/posts'
+      preLoaderRoute: typeof AuthedProPostsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/pro/ia': {
       id: '/_authed/pro/ia'
       path: '/pro/ia'
@@ -462,7 +519,9 @@ interface AuthedRouteChildren {
   AuthedInboxRoute: typeof AuthedInboxRoute
   AuthedNotificacoesRoute: typeof AuthedNotificacoesRoute
   AuthedPainelGeralRoute: typeof AuthedPainelGeralRoute
+  AuthedRankingRoute: typeof AuthedRankingRoute
   AuthedUsuariosRoute: typeof AuthedUsuariosRoute
+  AuthedWhatsappRoute: typeof AuthedWhatsappRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedParlamentarEmendasRoute: typeof AuthedParlamentarEmendasRoute
   AuthedParlamentarPropositurasRoute: typeof AuthedParlamentarPropositurasRoute
@@ -470,6 +529,7 @@ interface AuthedRouteChildren {
   AuthedProAutomacoesRoute: typeof AuthedProAutomacoesRoute
   AuthedProDisparoRoute: typeof AuthedProDisparoRoute
   AuthedProIaRoute: typeof AuthedProIaRoute
+  AuthedProPostsRoute: typeof AuthedProPostsRoute
   AuthedProTrafegoRoute: typeof AuthedProTrafegoRoute
   AuthedAtendimentosIndexRoute: typeof AuthedAtendimentosIndexRoute
   AuthedEleitoresIndexRoute: typeof AuthedEleitoresIndexRoute
@@ -485,7 +545,9 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedInboxRoute: AuthedInboxRoute,
   AuthedNotificacoesRoute: AuthedNotificacoesRoute,
   AuthedPainelGeralRoute: AuthedPainelGeralRoute,
+  AuthedRankingRoute: AuthedRankingRoute,
   AuthedUsuariosRoute: AuthedUsuariosRoute,
+  AuthedWhatsappRoute: AuthedWhatsappRoute,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedParlamentarEmendasRoute: AuthedParlamentarEmendasRoute,
   AuthedParlamentarPropositurasRoute: AuthedParlamentarPropositurasRoute,
@@ -493,6 +555,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedProAutomacoesRoute: AuthedProAutomacoesRoute,
   AuthedProDisparoRoute: AuthedProDisparoRoute,
   AuthedProIaRoute: AuthedProIaRoute,
+  AuthedProPostsRoute: AuthedProPostsRoute,
   AuthedProTrafegoRoute: AuthedProTrafegoRoute,
   AuthedAtendimentosIndexRoute: AuthedAtendimentosIndexRoute,
   AuthedEleitoresIndexRoute: AuthedEleitoresIndexRoute,

@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
       id: 'pro', items: [
         { id: 'disparo', label: 'Disparo em massa', to: '/pro/disparo' },
         { id: 'automacoes', label: 'Automações', to: '/pro/automacoes' },
+        { id: 'posts', label: 'Posts automáticos', to: '/pro/posts' },
         { id: 'trafego', label: 'Tráfego pago', to: '/pro/trafego' },
         { id: 'ia', label: 'Atendimento por IA', to: '/pro/ia' },
         { id: 'analise', label: 'IA analisa mandato', to: '/pro/analise' },
@@ -52,6 +53,7 @@ const navItems: NavItem[] = [
     }
   },
   { id: 'envolvimento', label: 'Envolvimento', icon: TrendingUp, to: '/envolvimento' },
+  { id: 'ranking', label: 'Ranking de lideranças', icon: TrendingUp, to: '/ranking' },
   { id: 'painel', label: 'Painel Geral', icon: BarChart3, to: '/painel-geral' },
   { id: 'inbox', label: 'Caixa de Entrada', icon: Inbox, to: '/inbox' },
   { id: 'notificacoes', label: 'Notificações', icon: Bell, to: '/notificacoes' },
