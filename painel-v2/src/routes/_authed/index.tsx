@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map } from 'lucide-react'
+import { Users, MessageSquare, TrendingUp, FileText, BarChart3, Map, Vote } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/store/auth'
 import { useEleitores } from '@/features/eleitores/hooks'
@@ -153,6 +153,30 @@ function InicioPage() {
         <CounterCard label="Em aberto" valor={counters?.abertas} loading={isLoading} cor="amber" />
         <CounterCard label="Resolvidos (30d)" valor={counters?.resolvidasMes} loading={isLoading} cor="rose" />
       </div>
+
+      {/* Destaque: Raio-X Votos */}
+      <Link
+        to="/raio-x-votos"
+        className="block bg-gradient-to-br from-marco-azul via-marco-azul-esc to-purple-700 text-white rounded-3xl p-5 sm:p-6 mb-6 hover:shadow-xl transition group"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0">
+            <Vote className="w-8 h-8 sm:w-9 sm:h-9 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="inline-block bg-marco-amarelo text-marco-azul-esc text-[10px] font-black tracking-widest px-2 py-0.5 rounded-full mb-1">
+              NOVO
+            </div>
+            <h2 className="text-lg sm:text-2xl font-black leading-tight">Raio-X Votos</h2>
+            <p className="text-white/90 text-xs sm:text-sm mt-1">
+              Votos detalhados por seção, local e candidato · Eleições 2012 até 2024
+            </p>
+          </div>
+          <div className="hidden sm:flex w-10 h-10 rounded-full bg-white/10 group-hover:bg-white/20 items-center justify-center flex-shrink-0">
+            <span className="text-xl">→</span>
+          </div>
+        </div>
+      </Link>
 
       {/* Atalhos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
