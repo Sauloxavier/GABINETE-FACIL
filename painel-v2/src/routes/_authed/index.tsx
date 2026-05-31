@@ -170,10 +170,9 @@ function InicioPage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
         <div>
-          <div className="text-sm text-slate-500">
-            {saudacao()}, <span className="font-bold text-marco-azul uppercase">{primeiroNome}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 mt-1">Dashboard</h1>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-800">
+            {saudacao()}, <span className="text-marco-azul uppercase">{primeiroNome}</span>
+          </h1>
         </div>
         <select
           value={periodo}
