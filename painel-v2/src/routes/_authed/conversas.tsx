@@ -3,7 +3,8 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { Send, Search, ChevronLeft, RefreshCw, MessageSquare } from 'lucide-react'
 import { useChats, useMensagens, useEnviarMensagem, useWahaStatus } from '@/features/whatsapp/hooks'
 import { useEleitores } from '@/features/eleitores/hooks'
-import { cn, iniciais } from '@/lib/utils'
+import { AvatarChat } from '@/features/whatsapp/components/AvatarChat'
+import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import type { WahaChat } from '@/lib/waha'
 
@@ -101,9 +102,7 @@ function ConversasPage() {
                     ativo ? 'bg-marco-azul/5 border-l-4 border-l-marco-azul' : 'border-l-4 border-l-transparent hover:bg-slate-50'
                   )}
                 >
-                  <div className="w-12 h-12 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center flex-shrink-0">
-                    {iniciais(nomeCadastrado ?? chat.name ?? chat.id)}
-                  </div>
+                  <AvatarChat chatId={chat.id} nome={nomeCadastrado ?? chat.name ?? chat.id} className="w-12 h-12 text-sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-bold text-sm text-slate-800 truncate flex items-center gap-1.5">
@@ -186,9 +185,7 @@ function ChatThread({
         <button onClick={onBack} className="lg:hidden text-slate-500">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="w-11 h-11 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center">
-          {iniciais(nomeCadastrado ?? chat.name ?? chat.id)}
-        </div>
+        <AvatarChat chatId={chat.id} nome={nomeCadastrado ?? chat.name ?? chat.id} className="w-11 h-11 text-sm" />
         <div className="flex-1 min-w-0">
           <div className="font-bold text-slate-800 truncate">{nomeCadastrado ?? chat.name ?? chat.id}</div>
           <div className="text-xs text-slate-500 font-mono">{chat.id.replace('@c.us', '').replace('@g.us', '')}</div>

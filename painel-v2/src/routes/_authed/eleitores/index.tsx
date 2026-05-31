@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useMemo, useRef, useState } from 'react'
-import { Plus, Search, Phone } from 'lucide-react'
+import { useMemo, useRef, useState, useEffect } from 'react'
+import { Plus, Search, Phone, Pencil } from 'lucide-react'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { EleitorModal } from '@/features/eleitores/components/EleitorModal'
 import type { Eleitor } from '@/lib/database.types'
@@ -16,17 +16,46 @@ function EleitoresPage() {
   const [busca, setBusca] = useState('')
   const [filtroEnvolvimento, setFiltroEnvolvimento] = useState('')
   const [filtroBairro, setFiltroBairro] = useState('')
+  const [filtroCadastro, setFiltroCadastro] = useState<'todos' | 'incompletos'>('todos')
   const [modalOpen, setModalOpen] = useState(false)
   const [eleitorEditando, setEleitorEditando] = useState<Eleitor | null>(null)
+  const [modoModal, setModoModal] = useState<'ver' | 'editar'>('editar')
 
   function novoEleitor() {
     setEleitorEditando(null)
+    setModoModal('editar')
     setModalOpen(true)
   }
   function editarEleitor(e: Eleitor) {
     setEleitorEditando(e)
+    setModoModal('editar')
     setModalOpen(true)
   }
+  function verEleitor(e: Eleitor) {
+    setEleitorEditando(e)
+    setModoModal('ver')
+    setModalOpen(true)
+  }
+
+  function cadastroIncompleto(e: Eleitor): boolean {
+    return !e.telefone || !e.cpf || !e.bairro || !e.nascimento
+  }
+
+  // Quando vem com ?id=X (deeplink do atendimento), abre o eleitor automaticamente
+  useEffect(() => {
+    if (!eleitores) return
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('id')
+    if (!id) return
+    const e = eleitores.find(x => x.id === id)
+    if (e) {
+      setEleitorEditando(e)
+      setModoModal('ver')
+      setModalOpen(true)
+      // Limpa o ?id da URL pra não reabrir em refresh
+      window.history.replaceState({}, '', '/eleitores')
+    }
+  }, [eleitores])
 
   const bairros = useMemo(() => {
     if (!eleitores) return []
@@ -44,9 +73,10 @@ function EleitoresPage() {
       }
       if (filtroEnvolvimento && e.envolvimento !== filtroEnvolvimento) return false
       if (filtroBairro && e.bairro !== filtroBairro) return false
+      if (filtroCadastro === 'incompletos' && !cadastroIncompleto(e)) return false
       return true
     })
-  }, [eleitores, busca, filtroEnvolvimento, filtroBairro])
+  }, [eleitores, busca, filtroEnvolvimento, filtroBairro, filtroCadastro])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const rowVirtualizer = useVirtualizer({
@@ -68,10 +98,10 @@ function EleitoresPage() {
         </button>
       </div>
 
-      <EleitorModal open={modalOpen} onClose={() => setModalOpen(false)} eleitor={eleitorEditando} />
+      <EleitorModal open={modalOpen} onClose={() => setModalOpen(false)} eleitor={eleitorEditando} modoInicial={modoModal} />
 
       {/* Filtros */}
-      <div className="bg-white rounded-2xl ring-soft p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="bg-white rounded-2xl ring-soft p-4 mb-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -100,6 +130,14 @@ function EleitoresPage() {
           <option value="Conquistado">Conquistado</option>
           <option value="Incerto">Incerto</option>
           <option value="Perdido">Perdido</option>
+        </select>
+        <select
+          value={filtroCadastro}
+          onChange={e => setFiltroCadastro(e.target.value as 'todos' | 'incompletos')}
+          className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+        >
+          <option value="todos">Cadastro: todos</option>
+          <option value="incompletos">⚠️ Só incompletos</option>
         </select>
       </div>
 
@@ -140,7 +178,7 @@ function EleitoresPage() {
                     height: virtualRow.size,
                   }}
                 >
-                  <EleitorRow eleitor={e} onEdit={editarEleitor} />
+                  <EleitorRow eleitor={e} onEdit={editarEleitor} onVer={verEleitor} incompleto={cadastroIncompleto(e)} />
                 </div>
               )
             })}
@@ -151,7 +189,7 @@ function EleitoresPage() {
   )
 }
 
-function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Eleitor) => void }) {
+function EleitorRow({ eleitor: e, onEdit, onVer, incompleto }: { eleitor: Eleitor; onEdit: (e: Eleitor) => void; onVer: (e: Eleitor) => void; incompleto: boolean }) {
   const chatId = chatIdDe(e.telefone)
 
   function abrirWhatsApp() {
@@ -160,7 +198,13 @@ function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Elei
   }
 
   return (
-    <div onClick={() => onEdit(e)} className="px-3 sm:px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 border-b border-slate-100">
+    <div
+      onClick={() => onVer(e)}
+      className={cn(
+        'px-3 sm:px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 border-b border-slate-100 border-l-4',
+        incompleto ? 'border-l-amber-400 bg-amber-50/30' : 'border-l-transparent',
+      )}
+    >
       <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-marco-azul text-white font-bold flex items-center justify-center flex-shrink-0">
         {iniciais(e.nome)}
       </div>
@@ -168,10 +212,15 @@ function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Elei
         <div className="font-semibold text-slate-800 truncate flex items-center gap-2">
           {e.codigo && <span className="text-[10px] font-mono font-bold text-marco-azul bg-marco-azul/10 px-1.5 py-0.5 rounded">{e.codigo}</span>}
           {e.nome}
+          {incompleto && (
+            <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5" title="Cadastro incompleto">
+              ⚠ INCOMPLETO
+            </span>
+          )}
         </div>
         <div className="text-xs text-slate-500 truncate mt-0.5">
-          {formatTelefone(e.telefone) || 'sem telefone'}
-          {e.bairro && <> · {e.bairro}</>}
+          {formatTelefone(e.telefone) || <span className="text-amber-700 font-semibold">sem telefone</span>}
+          {e.bairro ? <> · {e.bairro}</> : <span className="text-amber-700"> · sem bairro</span>}
         </div>
       </div>
       <span
@@ -186,6 +235,13 @@ function EleitorRow({ eleitor: e, onEdit }: { eleitor: Eleitor; onEdit: (e: Elei
       >
         {e.envolvimento ?? 'Não trabalhado'}
       </span>
+      <button
+        onClick={ev => { ev.stopPropagation(); onEdit(e) }}
+        className="hidden sm:flex bg-slate-100 hover:bg-slate-200 text-slate-700 w-9 h-9 rounded-full items-center justify-center flex-shrink-0"
+        title="Editar"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
       {e.telefone && (
         <button
           onClick={ev => { ev.stopPropagation(); abrirWhatsApp() }}

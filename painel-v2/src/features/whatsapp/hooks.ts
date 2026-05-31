@@ -42,6 +42,19 @@ export function useMensagens(chatId: string | null) {
   })
 }
 
+/** Foto de perfil do contato — cacheada 24h */
+export function useFotoPerfil(chatId: string | null) {
+  const waha = useWaha()
+  return useQuery({
+    queryKey: ['waha', 'foto', chatId],
+    queryFn: () => waha!.fotoPerfil(chatId!),
+    enabled: !!waha?.isConfigured && !!chatId && !chatId.endsWith('@lid'),
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 24 * 60 * 60_000,
+    retry: false,
+  })
+}
+
 export function useEnviarMensagem() {
   const waha = useWaha()
   const qc = useQueryClient()
