@@ -1,0 +1,20 @@
+{
+  "name": "marcoxavier-votos-limeira",
+  "version": "1.0.0",
+  "description": "Importa votos detalhados do TSE pra Limeira-SP (e outras cidades) — alimenta o módulo Raio-X Votos do painel",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "vereador-2024": "node index.js --ano 2024 --cargo VEREADOR",
+    "prefeito-2024":  "node index.js --ano 2024 --cargo PREFEITO",
+    "vereador-2020":  "node index.js --ano 2020 --cargo VEREADOR",
+    "vereador-2016":  "node index.js --ano 2016 --cargo VEREADOR",
+    "deputado-est-2022": "node index.js --ano 2022 --cargo \"DEPUTADO ESTADUAL\"",
+    "deputado-fed-2022": "node index.js --ano 2022 --cargo \"DEPUTADO FEDERAL\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": { "node": ">=20" }
+}

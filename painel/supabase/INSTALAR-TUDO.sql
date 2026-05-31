@@ -505,6 +505,48 @@ end $$;
 create index if not exists idx_eleitores_codigo on public.eleitores (codigo);
 
 -- ====================================================
+-- TABELA: votos_tse (Raio-X Votos)
+-- ====================================================
+create table if not exists public.votos_tse (
+  id bigserial primary key,
+  ano int not null,
+  turno int not null default 1,
+  cargo text not null,
+  uf text not null default 'SP',
+  municipio_codigo text not null,
+  municipio text not null,
+  zona int not null,
+  secao int not null,
+  local_votacao text,
+  local_endereco text,
+  bairro text,
+  numero_candidato text not null,
+  nome_candidato text not null,
+  nome_urna text,
+  partido text,
+  partido_sigla text,
+  coligacao text,
+  votos int not null default 0,
+  criado_em timestamptz default now(),
+  unique (ano, turno, cargo, municipio_codigo, zona, secao, numero_candidato)
+);
+
+create index if not exists idx_votos_ano on public.votos_tse (ano, cargo);
+create index if not exists idx_votos_municipio on public.votos_tse (municipio_codigo, ano);
+create index if not exists idx_votos_candidato on public.votos_tse (numero_candidato, ano);
+create index if not exists idx_votos_bairro on public.votos_tse (bairro);
+
+create or replace view public.v_votos_por_candidato as
+select
+  ano, turno, cargo, municipio, municipio_codigo,
+  numero_candidato, nome_candidato, partido_sigla,
+  sum(votos) as total_votos,
+  count(distinct secao) as secoes
+from public.votos_tse
+group by ano, turno, cargo, municipio, municipio_codigo, numero_candidato, nome_candidato, partido_sigla
+order by total_votos desc;
+
+-- ====================================================
 -- RLS — Row Level Security
 -- ====================================================
 alter table public.eleitores         enable row level security;
@@ -522,6 +564,7 @@ alter table public.diagnosticos      enable row level security;
 alter table public.posts             enable row level security;
 alter table public.automacoes        enable row level security;
 alter table public.automacao_log     enable row level security;
+alter table public.votos_tse         enable row level security;
 
 -- Eleitores
 drop policy if exists "auth users full eleitores" on public.eleitores;
@@ -617,6 +660,11 @@ create policy "auth users full automacoes" on public.automacoes
 
 drop policy if exists "auth users full automacao_log" on public.automacao_log;
 create policy "auth users full automacao_log" on public.automacao_log
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+-- Votos TSE
+drop policy if exists "auth users full votos" on public.votos_tse;
+create policy "auth users full votos" on public.votos_tse
   for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 -- ====================================================

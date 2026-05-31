@@ -54,6 +54,7 @@ const navItems: NavItem[] = [
   },
   { id: 'envolvimento', label: 'Envolvimento', icon: TrendingUp, to: '/envolvimento' },
   { id: 'ranking', label: 'Ranking de lideranças', icon: TrendingUp, to: '/ranking' },
+  { id: 'raio-x-votos', label: 'Raio-X Votos', icon: BarChart3, to: '/raio-x-votos' },
   { id: 'painel', label: 'Painel Geral', icon: BarChart3, to: '/painel-geral' },
   { id: 'inbox', label: 'Caixa de Entrada', icon: Inbox, to: '/inbox' },
   { id: 'notificacoes', label: 'Notificações', icon: Bell, to: '/notificacoes' },

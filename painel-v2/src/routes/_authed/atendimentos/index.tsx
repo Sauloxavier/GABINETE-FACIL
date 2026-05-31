@@ -22,13 +22,13 @@ const STATUS_CORES: Record<string, { bg: string; border: string; dot: string }> 
 
 type Modo = 'lista' | 'kanban'
 
-function primeiroDoMes() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
-}
-function hoje() {
-  return new Date().toISOString().slice(0, 10)
-}
+const PERIODOS = [
+  { id: '7',    label: 'Últimos 7 dias',  dias: 7 },
+  { id: '15',   label: 'Últimos 15 dias', dias: 15 },
+  { id: '30',   label: 'Últimos 30 dias', dias: 30 },
+  { id: '60',   label: 'Últimos 60 dias', dias: 60 },
+  { id: 'tudo', label: 'Tudo',            dias: 0 },
+] as const
 
 function AtendimentosPage() {
   const { data: demandas, isLoading } = useDemandas()
@@ -36,8 +36,7 @@ function AtendimentosPage() {
   const [modo, setModo] = useState<Modo>('lista')
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
-  const [dataDe, setDataDe] = useState(primeiroDoMes())
-  const [dataAte, setDataAte] = useState(hoje())
+  const [periodo, setPeriodo] = useState<string>('30')
   const [modalOpen, setModalOpen] = useState(false)
   const [demandaEditando, setDemandaEditando] = useState<Demanda | null>(null)
 
@@ -52,18 +51,23 @@ function AtendimentosPage() {
   const filtradas = useMemo(() => {
     if (!demandas) return []
     const q = busca.toLowerCase().trim()
+    const diasPeriodo = PERIODOS.find(p => p.id === periodo)?.dias ?? 0
+    const corte = diasPeriodo > 0
+      ? new Date(Date.now() - diasPeriodo * 86400000).toISOString().slice(0, 10)
+      : ''
     return demandas.filter(d => {
       if (q) {
         const nomeEleitor = (mapEleitores.get(d.eleitor_id) ?? '').toLowerCase()
         if (!d.descricao.toLowerCase().includes(q) && !nomeEleitor.includes(q)) return false
       }
       if (filtroStatus && d.status !== filtroStatus) return false
-      const dt = (d.data || '').slice(0, 10)
-      if (dataDe && dt < dataDe) return false
-      if (dataAte && dt > dataAte) return false
+      if (corte) {
+        const dt = (d.data || '').slice(0, 10)
+        if (dt < corte) return false
+      }
       return true
     })
-  }, [demandas, busca, filtroStatus, dataDe, dataAte, mapEleitores])
+  }, [demandas, busca, filtroStatus, periodo, mapEleitores])
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 flex flex-col h-full">
@@ -101,7 +105,7 @@ function AtendimentosPage() {
 
       <DemandaModal open={modalOpen} onClose={() => setModalOpen(false)} demanda={demandaEditando} />
 
-      <div className="bg-white rounded-2xl ring-soft p-4 mb-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl ring-soft p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <input
           value={busca}
           onChange={e => setBusca(e.target.value)}
@@ -118,18 +122,13 @@ function AtendimentosPage() {
             {STATUS_DEMANDA.map(s => <option key={s.valor} value={s.valor}>{s.label}</option>)}
           </select>
         )}
-        <input
-          type="date"
-          value={dataDe}
-          onChange={e => setDataDe(e.target.value)}
+        <select
+          value={periodo}
+          onChange={e => setPeriodo(e.target.value)}
           className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-        />
-        <input
-          type="date"
-          value={dataAte}
-          onChange={e => setDataAte(e.target.value)}
-          className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-        />
+        >
+          {PERIODOS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
       </div>
 
       {isLoading ? (

@@ -15,6 +15,7 @@ import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedWhatsappRouteImport } from './routes/_authed/whatsapp'
 import { Route as AuthedUsuariosRouteImport } from './routes/_authed/usuarios'
 import { Route as AuthedRankingRouteImport } from './routes/_authed/ranking'
+import { Route as AuthedRaioXVotosRouteImport } from './routes/_authed/raio-x-votos'
 import { Route as AuthedPainelGeralRouteImport } from './routes/_authed/painel-geral'
 import { Route as AuthedNotificacoesRouteImport } from './routes/_authed/notificacoes'
 import { Route as AuthedInboxRouteImport } from './routes/_authed/inbox'
@@ -62,6 +63,11 @@ const AuthedUsuariosRoute = AuthedUsuariosRouteImport.update({
 const AuthedRankingRoute = AuthedRankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedRaioXVotosRoute = AuthedRaioXVotosRouteImport.update({
+  id: '/raio-x-votos',
+  path: '/raio-x-votos',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedPainelGeralRoute = AuthedPainelGeralRouteImport.update({
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthedInboxRoute
   '/notificacoes': typeof AuthedNotificacoesRoute
   '/painel-geral': typeof AuthedPainelGeralRoute
+  '/raio-x-votos': typeof AuthedRaioXVotosRoute
   '/ranking': typeof AuthedRankingRoute
   '/usuarios': typeof AuthedUsuariosRoute
   '/whatsapp': typeof AuthedWhatsappRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthedInboxRoute
   '/notificacoes': typeof AuthedNotificacoesRoute
   '/painel-geral': typeof AuthedPainelGeralRoute
+  '/raio-x-votos': typeof AuthedRaioXVotosRoute
   '/ranking': typeof AuthedRankingRoute
   '/usuarios': typeof AuthedUsuariosRoute
   '/whatsapp': typeof AuthedWhatsappRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/_authed/inbox': typeof AuthedInboxRoute
   '/_authed/notificacoes': typeof AuthedNotificacoesRoute
   '/_authed/painel-geral': typeof AuthedPainelGeralRoute
+  '/_authed/raio-x-votos': typeof AuthedRaioXVotosRoute
   '/_authed/ranking': typeof AuthedRankingRoute
   '/_authed/usuarios': typeof AuthedUsuariosRoute
   '/_authed/whatsapp': typeof AuthedWhatsappRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/notificacoes'
     | '/painel-geral'
+    | '/raio-x-votos'
     | '/ranking'
     | '/usuarios'
     | '/whatsapp'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/notificacoes'
     | '/painel-geral'
+    | '/raio-x-votos'
     | '/ranking'
     | '/usuarios'
     | '/whatsapp'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/_authed/inbox'
     | '/_authed/notificacoes'
     | '/_authed/painel-geral'
+    | '/_authed/raio-x-votos'
     | '/_authed/ranking'
     | '/_authed/usuarios'
     | '/_authed/whatsapp'
@@ -371,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/ranking'
       fullPath: '/ranking'
       preLoaderRoute: typeof AuthedRankingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/raio-x-votos': {
+      id: '/_authed/raio-x-votos'
+      path: '/raio-x-votos'
+      fullPath: '/raio-x-votos'
+      preLoaderRoute: typeof AuthedRaioXVotosRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/painel-geral': {
@@ -519,6 +538,7 @@ interface AuthedRouteChildren {
   AuthedInboxRoute: typeof AuthedInboxRoute
   AuthedNotificacoesRoute: typeof AuthedNotificacoesRoute
   AuthedPainelGeralRoute: typeof AuthedPainelGeralRoute
+  AuthedRaioXVotosRoute: typeof AuthedRaioXVotosRoute
   AuthedRankingRoute: typeof AuthedRankingRoute
   AuthedUsuariosRoute: typeof AuthedUsuariosRoute
   AuthedWhatsappRoute: typeof AuthedWhatsappRoute
@@ -545,6 +565,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedInboxRoute: AuthedInboxRoute,
   AuthedNotificacoesRoute: AuthedNotificacoesRoute,
   AuthedPainelGeralRoute: AuthedPainelGeralRoute,
+  AuthedRaioXVotosRoute: AuthedRaioXVotosRoute,
   AuthedRankingRoute: AuthedRankingRoute,
   AuthedUsuariosRoute: AuthedUsuariosRoute,
   AuthedWhatsappRoute: AuthedWhatsappRoute,
