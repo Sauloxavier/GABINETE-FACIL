@@ -1,16 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import { Rocket, Filter, MessageSquare, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { Rocket, Filter, MessageSquare, Send, CheckCircle2, XCircle, Loader2, Image, Mic, Shuffle, Upload } from 'lucide-react'
 import { useEleitores } from '@/features/eleitores/hooks'
 import { useConfig } from '@/features/config/hooks'
 import { WahaClient } from '@/lib/waha'
+import { supabase } from '@/lib/supabase'
 import { iniciais, chatIdDe } from '@/lib/utils'
+import { variarMensagem, temSpintax, expandirSpintax } from '@/lib/spintax'
 
 export const Route = createFileRoute('/_authed/pro/disparo')({
   component: DisparoPage,
 })
 
 type Modo = 'navegador' | 'waha'
+type TipoMidia = 'texto' | 'imagem' | 'audio'
 
 function DisparoPage() {
   const { data: eleitores } = useEleitores()
@@ -24,8 +27,15 @@ function DisparoPage() {
   const [usarCustom, setUsarCustom] = useState(false)
   const [conteudoCustom, setConteudoCustom] = useState('')
   const [modo, setModo] = useState<Modo>('waha')
+  const [tipoMidia, setTipoMidia] = useState<TipoMidia>('texto')
   const [intervaloMin, setIntervaloMin] = useState(8)
   const [intervaloMax, setIntervaloMax] = useState(20)
+  const [aplicarVariacoes, setAplicarVariacoes] = useState(true)
+
+  // Mídia
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [arquivoUrl, setArquivoUrl] = useState('')
+  const [uploadando, setUploadando] = useState(false)
 
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -53,25 +63,49 @@ function DisparoPage() {
     return config?.mensagens_padrao?.find(t => t.id === templateId)?.conteudo ?? ''
   }, [usarCustom, conteudoCustom, templateId, config])
 
-  function aplicarTemplate(conteudo: string, eleitor: { nome: string; bairro: string | null }) {
-    return conteudo
-      .replace(/\{\{nome\}\}/g, eleitor.nome.split(' ')[0] ?? eleitor.nome)
-      .replace(/\{\{nome_completo\}\}/g, eleitor.nome)
-      .replace(/\{\{primeiro_nome\}\}/g, eleitor.nome.split(' ')[0] ?? '')
-      .replace(/\{\{bairro\}\}/g, eleitor.bairro ?? '')
-      .replace(/\{\{vereador\}\}/g, config?.nome_vereador ?? 'Marco Xavier')
-  }
-
   const previewMsg = useMemo(() => {
     const alvo = destinatarios[0]
-    if (!alvo || !conteudoEfetivo) return '(sem destinatário ou template selecionado)'
-    return aplicarTemplate(conteudoEfetivo, alvo)
+    if (!alvo || !conteudoEfetivo) return '(sem destinatário ou template)'
+    const vars = {
+      nome: alvo.nome.split(' ')[0] ?? alvo.nome,
+      nome_completo: alvo.nome,
+      primeiro_nome: alvo.nome.split(' ')[0] ?? '',
+      bairro: alvo.bairro ?? '',
+      vereador: config?.nome_vereador ?? 'Marco Xavier',
+    }
+    return variarMensagem(conteudoEfetivo, vars, aplicarVariacoes)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destinatarios, conteudoEfetivo, config])
+  }, [destinatarios, conteudoEfetivo, aplicarVariacoes, config])
+
+  async function uploadArquivo() {
+    if (!arquivo) return
+    setUploadando(true)
+    try {
+      const ext = (arquivo.name.split('.').pop() || 'bin').toLowerCase()
+      const path = `disparo/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const { error } = await supabase.storage.from('anexos').upload(path, arquivo, {
+        contentType: arquivo.type,
+        upsert: false,
+      })
+      if (error) throw error
+      // URL pública (anexos é private; geramos signed URL longa)
+      const { data: pub } = await supabase.storage.from('anexos').createSignedUrl(path, 60 * 60 * 24 * 7)
+      setArquivoUrl(pub?.signedUrl ?? '')
+      setResultado({ ok: true, msg: 'Mídia enviada ao Storage' })
+    } catch (err) {
+      setResultado({ ok: false, msg: 'Falha no upload: ' + (err as Error).message })
+    } finally {
+      setUploadando(false)
+    }
+  }
 
   async function disparar() {
-    if (!conteudoEfetivo.trim()) {
+    if (tipoMidia === 'texto' && !conteudoEfetivo.trim()) {
       setResultado({ ok: false, msg: 'Escreva uma mensagem ou escolha um template' })
+      return
+    }
+    if ((tipoMidia === 'imagem' || tipoMidia === 'audio') && !arquivoUrl) {
+      setResultado({ ok: false, msg: 'Faça upload da mídia primeiro' })
       return
     }
     if (destinatarios.length === 0) {
@@ -83,13 +117,14 @@ function DisparoPage() {
       return
     }
 
-    const confirmar = confirm(
-      `Disparar pra ${destinatarios.length} contato(s)?\n\n` +
-      (modo === 'waha'
-        ? `Intervalo: ${intervaloMin}-${intervaloMax}s entre cada envio.`
-        : 'Vai abrir uma aba do WhatsApp Web por contato.')
-    )
-    if (!confirmar) return
+    const txtConfirm = tipoMidia === 'texto' ? 'mensagem'
+                     : tipoMidia === 'imagem' ? 'imagem com legenda'
+                     : 'áudio'
+    if (!confirm(
+      `Disparar ${txtConfirm} pra ${destinatarios.length} contato(s)?\n\n` +
+      `Intervalo: ${intervaloMin}-${intervaloMax}s entre cada envio.\n` +
+      (aplicarVariacoes ? '✓ Anti-bloqueio: spintax + microvariações ativos.' : '⚠️ Sem variações — risco de bloqueio.')
+    )) return
 
     setEnviando(true)
     setParar(false)
@@ -109,9 +144,24 @@ function DisparoPage() {
         const e = destinatarios[i]
         const tel = (e.telefone ?? '').replace(/\D/g, '')
         if (!tel) { falhas++; continue }
-        const msg = aplicarTemplate(conteudoEfetivo, e)
+        const chatId = `${tel.startsWith('55') ? tel : '55' + tel}@c.us`
+        const vars = {
+          nome: e.nome.split(' ')[0] ?? e.nome,
+          nome_completo: e.nome,
+          primeiro_nome: e.nome.split(' ')[0] ?? '',
+          bairro: e.bairro ?? '',
+          vereador: config?.nome_vereador ?? 'Marco Xavier',
+        }
         try {
-          await waha.enviarTexto(`${tel.startsWith('55') ? tel : '55' + tel}@c.us`, msg)
+          if (tipoMidia === 'texto') {
+            const msg = variarMensagem(conteudoEfetivo, vars, aplicarVariacoes)
+            await waha.enviarTexto(chatId, msg)
+          } else if (tipoMidia === 'imagem') {
+            const caption = conteudoEfetivo.trim() ? variarMensagem(conteudoEfetivo, vars, aplicarVariacoes) : undefined
+            await waha.enviarImagem(chatId, arquivoUrl, caption)
+          } else if (tipoMidia === 'audio') {
+            await waha.enviarAudio(chatId, arquivoUrl)
+          }
           enviados++
         } catch {
           falhas++
@@ -127,12 +177,20 @@ function DisparoPage() {
         msg: `Disparo concluído: ${enviados} enviado(s), ${falhas} falha(s)`,
       })
     } else {
+      // Modo navegador: só texto
       let i = 0
       for (const e of destinatarios) {
         if (parar) break
         const num = (chatIdDe(e.telefone) ?? '').replace('@c.us', '')
         if (!num) continue
-        const msg = aplicarTemplate(conteudoEfetivo, e)
+        const vars = {
+          nome: e.nome.split(' ')[0] ?? e.nome,
+          nome_completo: e.nome,
+          primeiro_nome: e.nome.split(' ')[0] ?? '',
+          bairro: e.bairro ?? '',
+          vereador: config?.nome_vereador ?? 'Marco Xavier',
+        }
+        const msg = variarMensagem(conteudoEfetivo, vars, aplicarVariacoes)
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank')
         i++
         setProgresso({ enviados: i, falhas: 0, total: destinatarios.length })
@@ -182,8 +240,6 @@ function DisparoPage() {
                 Apenas com telefone
               </label>
             </div>
-
-            {/* Preview lista */}
             <div className="mt-3 max-h-48 overflow-y-auto scrollbar-thin border-t border-slate-100 pt-2">
               {destinatarios.slice(0, 10).map(e => (
                 <div key={e.id} className="flex items-center gap-2 text-xs py-1">
@@ -200,74 +256,146 @@ function DisparoPage() {
             </div>
           </div>
 
-          {/* Mensagem */}
+          {/* Tipo de mídia + Mensagem */}
           <div className="bg-white rounded-2xl ring-soft p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" /> 2. Mensagem
+                <MessageSquare className="w-4 h-4" /> 2. Conteúdo
               </h3>
-              <div className="text-xs flex gap-3">
-                <label className="flex items-center gap-1">
-                  <input type="radio" checked={!usarCustom} onChange={() => setUsarCustom(false)} />
-                  Template
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {(['texto', 'imagem', 'audio'] as TipoMidia[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTipoMidia(t)}
+                  className={`border-2 rounded-lg p-2 text-xs font-bold flex flex-col items-center gap-1 ${
+                    tipoMidia === t ? 'border-marco-azul bg-marco-azul/5 text-marco-azul' : 'border-slate-200 text-slate-500'
+                  }`}
+                >
+                  {t === 'texto' && <MessageSquare className="w-4 h-4" />}
+                  {t === 'imagem' && <Image className="w-4 h-4" />}
+                  {t === 'audio' && <Mic className="w-4 h-4" />}
+                  {t === 'texto' ? 'Texto' : t === 'imagem' ? 'Imagem' : 'Áudio'}
+                </button>
+              ))}
+            </div>
+
+            {(tipoMidia === 'imagem' || tipoMidia === 'audio') && (
+              <div className="mb-3 bg-slate-50 rounded-lg p-3">
+                <label className="block">
+                  <input
+                    type="file"
+                    accept={tipoMidia === 'imagem' ? 'image/*' : 'audio/*'}
+                    onChange={e => setArquivo(e.target.files?.[0] ?? null)}
+                    className="text-xs w-full"
+                  />
                 </label>
-                <label className="flex items-center gap-1">
-                  <input type="radio" checked={usarCustom} onChange={() => setUsarCustom(true)} />
-                  Custom
-                </label>
+                {arquivo && !arquivoUrl && (
+                  <button onClick={uploadArquivo} disabled={uploadando} className="mt-2 w-full bg-marco-azul text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 disabled:opacity-50">
+                    <Upload className="w-3 h-3" />
+                    {uploadando ? 'Enviando...' : `Enviar ${arquivo.name}`}
+                  </button>
+                )}
+                {arquivoUrl && (
+                  <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Pronto pra enviar
+                  </div>
+                )}
               </div>
-            </div>
-            {!usarCustom ? (
-              <select value={templateId} onChange={e => setTemplateId(e.target.value)} className="input">
-                <option value="">— Escolha —</option>
-                {(config?.mensagens_padrao ?? []).map(t => (
-                  <option key={t.id} value={t.id}>{t.nome} ({t.categoria})</option>
-                ))}
-              </select>
-            ) : (
-              <textarea value={conteudoCustom} onChange={e => setConteudoCustom(e.target.value)} rows={5}
-                placeholder="Olá {{nome}}, ..." className="input" />
             )}
-            <div className="mt-3 bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-              <div className="text-xs font-bold text-emerald-700 mb-1">PRÉVIA (1º destinatário)</div>
-              <div className="text-sm text-slate-700 whitespace-pre-line">{previewMsg}</div>
-            </div>
+
+            {(tipoMidia === 'texto' || tipoMidia === 'imagem') && (
+              <>
+                <div className="text-xs flex gap-3 mb-2">
+                  <label className="flex items-center gap-1">
+                    <input type="radio" checked={!usarCustom} onChange={() => setUsarCustom(false)} />
+                    Template
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input type="radio" checked={usarCustom} onChange={() => setUsarCustom(true)} />
+                    Custom
+                  </label>
+                </div>
+                {!usarCustom ? (
+                  <select value={templateId} onChange={e => setTemplateId(e.target.value)} className="input">
+                    <option value="">— Escolha —</option>
+                    {(config?.mensagens_padrao ?? []).map(t => (
+                      <option key={t.id} value={t.id}>{t.nome} ({t.categoria})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <textarea value={conteudoCustom} onChange={e => setConteudoCustom(e.target.value)} rows={5}
+                    placeholder="Olá {{nome}}, {Oi|E aí|Tudo bem}, ..."
+                    className="input" />
+                )}
+                {temSpintax(conteudoEfetivo) && (
+                  <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1 bg-emerald-50 rounded p-2">
+                    <Shuffle className="w-3 h-3" /> Spintax detectado — cada envio será uma variação diferente
+                  </div>
+                )}
+                <div className="mt-2 bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                  <div className="text-xs font-bold text-emerald-700 mb-1">PRÉVIA (1º destinatário)</div>
+                  <div className="text-sm text-slate-700 whitespace-pre-line">{previewMsg}</div>
+                </div>
+                <div className="mt-2 text-[10px] text-slate-500">
+                  💡 Spintax: <code>{'{Olá|Oi|E aí}'}</code> → sorteia 1 por envio. Variáveis: <code>{'{{nome}}'}</code>, <code>{'{{bairro}}'}</code>, <code>{'{{vereador}}'}</code>.
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
-          {/* Modo */}
+          {/* Anti-bloqueio + Modo + Intervalo */}
           <div className="bg-white rounded-2xl ring-soft p-5">
-            <h3 className="font-bold text-slate-800 mb-3">3. Modo de envio</h3>
+            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <Shuffle className="w-4 h-4" /> 3. Anti-bloqueio
+            </h3>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={aplicarVariacoes} onChange={e => setAplicarVariacoes(e.target.checked)} className="mt-1" />
+              <div>
+                <div className="font-semibold">Aplicar microvariações automáticas</div>
+                <div className="text-xs text-slate-500">Pontuação, espaços invisíveis e emojis diferentes em cada envio. Reduz risco de bloqueio do Meta.</div>
+              </div>
+            </label>
+          </div>
+
+          <div className="bg-white rounded-2xl ring-soft p-5">
+            <h3 className="font-bold text-slate-800 mb-3">4. Modo de envio</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className={`border-2 rounded-xl p-3 cursor-pointer flex items-start gap-2 ${modo === 'waha' ? 'border-marco-azul bg-marco-azul/5' : 'border-slate-200'}`}>
                 <input type="radio" value="waha" checked={modo === 'waha'} onChange={() => setModo('waha')} className="mt-1" />
                 <div>
                   <div className="font-bold text-sm">⚡ Via WhatsApp (WAHA)</div>
-                  <div className="text-xs text-slate-500">Envio automático com intervalo aleatório. Recomendado.</div>
+                  <div className="text-xs text-slate-500">Automático com intervalo aleatório. Suporta texto, imagem e áudio.</div>
                 </div>
               </label>
               <label className={`border-2 rounded-xl p-3 cursor-pointer flex items-start gap-2 ${modo === 'navegador' ? 'border-marco-azul bg-marco-azul/5' : 'border-slate-200'}`}>
                 <input type="radio" value="navegador" checked={modo === 'navegador'} onChange={() => setModo('navegador')} className="mt-1" />
                 <div>
                   <div className="font-bold text-sm">🌐 Navegador</div>
-                  <div className="text-xs text-slate-500">Abre wa.me um por vez. Bom pra revisar.</div>
+                  <div className="text-xs text-slate-500">Abre wa.me um por vez. Só texto.</div>
                 </div>
               </label>
             </div>
 
-            {modo === 'waha' && (
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div>
-                  <label className="text-xs text-slate-500">Min (segundos)</label>
-                  <input type="number" min={2} value={intervaloMin} onChange={e => setIntervaloMin(Number(e.target.value))} className="input" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Max (segundos)</label>
-                  <input type="number" min={2} value={intervaloMax} onChange={e => setIntervaloMax(Number(e.target.value))} className="input" />
-                </div>
+            <h4 className="font-bold text-slate-700 mt-4 mb-2 text-sm">Tempo entre envios</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-500">Mínimo (s)</label>
+                <input type="number" min={2} value={intervaloMin} onChange={e => setIntervaloMin(Number(e.target.value))} className="input" />
               </div>
-            )}
+              <div>
+                <label className="text-xs text-slate-500">Máximo (s)</label>
+                <input type="number" min={2} value={intervaloMax} onChange={e => setIntervaloMax(Number(e.target.value))} className="input" />
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              ⏱ Tempo estimado: <strong>{Math.ceil(destinatarios.length * (intervaloMin + intervaloMax) / 2 / 60)} min</strong> pra {destinatarios.length} contato(s)
+            </div>
+            <div className="text-xs text-amber-700 mt-1">
+              💡 8-30s pra evitar bloqueio. Acima de 100/dia: risco alto.
+            </div>
           </div>
 
           {/* Botão */}
@@ -284,8 +412,7 @@ function DisparoPage() {
               onClick={() => setParar(true)}
               className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg"
             >
-              <XCircle className="w-5 h-5" />
-              Parar disparo
+              <XCircle className="w-5 h-5" /> Parar disparo
             </button>
           )}
 
@@ -322,3 +449,6 @@ function DisparoPage() {
     </div>
   )
 }
+
+// Suprime unused
+void expandirSpintax

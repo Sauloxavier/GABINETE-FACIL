@@ -334,7 +334,7 @@ function InicioPage() {
 
       <div className="bg-white rounded-2xl ring-soft p-6 text-sm text-slate-500 text-center">
         ✨ Painel do gabinete Marco Xavier.
-        <div className="text-xs text-slate-400 mt-1">Desenvolvido por Saulo Xavier</div>
+        <div className="text-xs text-slate-400 mt-1 uppercase tracking-widest">powered by <span className="font-black text-marco-azul">GOVERNATO</span></div>
       </div>
     </div>
   )

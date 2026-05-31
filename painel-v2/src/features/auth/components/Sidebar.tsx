@@ -108,11 +108,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}
     >
-      <div className="px-4 py-6 border-b border-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl font-black text-marco-azul">Marco Xavier</div>
-          <div className="text-[10px] uppercase tracking-widest text-marco-amarelo-esc font-bold">Vereador</div>
-        </div>
+      <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-center">
+        <img src="/governato-vertical.png" alt="governato" className="h-20 w-auto" />
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto scrollbar-thin">

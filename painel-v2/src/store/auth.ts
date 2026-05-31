@@ -40,8 +40,21 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   async signOut() {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.warn('[signOut]', err)
+    }
     set({ session: null, user: null, perfil: null })
+    // Limpa caches sensíveis e força ir pra /login
+    // (TanStack Router não rerun beforeLoad automaticamente após mudança de auth)
+    try {
+      localStorage.removeItem('mx_supabase_auth')
+      localStorage.removeItem('mazyos-rq-cache')
+    } catch {}
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
   },
 
   async refreshPerfil() {

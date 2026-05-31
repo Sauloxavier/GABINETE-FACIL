@@ -85,7 +85,7 @@ function LoginPage() {
 
         <div className="text-center text-xs text-slate-400 mt-6">
           Gabinete Marco Xavier
-          <div className="text-[10px] text-slate-300 mt-1">Desenvolvido por Saulo Xavier</div>
+          <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest">powered by <span className="font-black text-marco-azul">GOVERNATO</span></div>
         </div>
       </div>
     </div>
