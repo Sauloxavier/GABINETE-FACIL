@@ -178,7 +178,7 @@ function LoginPage() {
         </div>
 
         {/* ─── COLUNA DIREITA — BANNER SP + ÓRBITA ───────────── */}
-        <div className="relative hidden lg:flex items-center justify-center overflow-hidden m-4 rounded-3xl">
+        <div className="relative hidden lg:flex items-center justify-center overflow-hidden">
           {/* Background São Paulo */}
           <div
             className="absolute inset-0 bg-cover bg-center"
