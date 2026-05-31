@@ -570,7 +570,7 @@ function EditarPerfilModal({ perfil, onClose }: { perfil: PerfilRow | null; onCl
 
       // 2. Se mudou o e-mail E é root, troca o e-mail de login (auth.users) via RPC
       if (emailMudou && isRoot) {
-        const { error: rpcErr } = await supabase.rpc('root_atualizar_email' as any, {
+        const { error: rpcErr } = await (supabase.rpc as any)('root_atualizar_email', {
           p_user_id: perfil!.id,
           p_novo_email: novoEmail,
         })
