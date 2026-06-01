@@ -18,7 +18,7 @@
 
 | | |
 |---|---|
-| **Produção** | https://mazy-os.vercel.app |
+| **Produção** | https://governato.com.br (Vercel alias: https://governata.vercel.app) |
 | **GitHub** | https://github.com/Sauloxavier/MazyOS |
 | **Branch ativa** | `main` (auto-deploy a cada push) |
 | **Login do Marco** | `marcoxavier@limeira.sp.leg.br` / `041228@` |
