@@ -98,6 +98,7 @@ export interface Perfil {
   pausado: boolean | null
   pausado_em: string | null
   aviso: string | null
+  criado_por: string | null
   criado_em: string
 }
 
